@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Idea Bucket</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AA%A3%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #0a0e1a;
+    --bg-glow: #101830;
+    --ink: #e8ecf8;
+    --ink-dim: #8b93ad;
+    --ink-faint: #565e78;
+    --gold: #f0b429;
+    --gold-soft: rgba(240, 180, 41, 0.15);
+    --line: rgba(255, 255, 255, 0.07);
+    --panel: rgba(16, 22, 42, 0.85);
+    --radius: 14px;
+    font-size: 16px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    background:
+      radial-gradient(ellipse 120% 90% at 50% -20%, var(--bg-glow) 0%, transparent 60%),
+      radial-gradient(ellipse 80% 60% at 85% 110%, rgba(240,180,41,0.05) 0%, transparent 55%),
+      var(--bg-deep);
+    color: var(--ink);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    width: 100%;
+    max-width: 680px;
+    padding: 2rem 1.25rem 0.5rem;
+    text-align: center;
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 2rem;
+    letter-spacing: -0.02em;
+  }
+  h1 .tilde { color: var(--gold); font-style: italic; }
+  .tagline {
+    color: var(--ink-dim);
+    font-size: 0.85rem;
+    margin-top: 0.35rem;
+    letter-spacing: 0.02em;
+  }
+
+  /* ---------- Stage ---------- */
+  .stage {
+    position: relative;
+    width: min(92vw, 560px);
+    aspect-ratio: 1 / 0.9;
+    max-height: 52dvh;
+    margin-top: 0.5rem;
+    user-select: none;
+  }
+
+  svg { width: 100%; height: 100%; display: block; }
+
+  /* ---------- Input ---------- */
+  .composer {
+    width: min(92vw, 560px);
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+  .composer input {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0.9rem 1.1rem;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .composer input::placeholder { color: var(--ink-faint); }
+  .composer input:focus {
+    border-color: rgba(240, 180, 41, 0.5);
+    box-shadow: 0 0 0 3px var(--gold-soft);
+  }
+  .composer button {
+    background: var(--gold);
+    border: none;
+    border-radius: var(--radius);
+    width: 52px;
+    color: #1a1408;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: transform 0.15s, filter 0.15s;
+  }
+  .composer button:hover { filter: brightness(1.1); }
+  .composer button:active { transform: scale(0.92); }
+
+  /* ---------- Counter ---------- */
+  .counter {
+    margin-top: 0.9rem;
+    color: var(--ink-dim);
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .counter strong { color: var(--gold); }
+
+  /* ---------- Bottom bar ---------- */
+  .bar {
+    margin-top: auto;
+    width: 100%;
+    max-width: 680px;
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 1rem 1.4rem;
+    flex-wrap: wrap;
+  }
+  .bar button {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    border-radius: 999px;
+    padding: 0.5rem 1.1rem;
+    font-family: inherit;
+    font-size: 0.8rem;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .bar button:hover {
+    border-color: rgba(240, 180, 41, 0.4);
+    color: var(--gold);
+  }
+
+  /* ---------- Drawer ---------- */
+  .scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 6, 12, 0.6);
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 40;
+  }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+
+  .drawer {
+    position: fixed;
+    top: 0; right: 0;
+    height: 100dvh;
+    width: min(88vw, 420px);
+    background: var(--panel);
+    border-left: 1px solid var(--line);
+    backdrop-filter: blur(20px);
+    transform: translateX(105%);
+    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+  }
+  .drawer.open { transform: translateX(0); }
+
+  .drawer-head {
+    padding: 1.4rem 1.4rem 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .drawer-head h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+  }
+  .close-btn {
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    width: 34px;
+    height: 34px;
+    color: var(--ink-dim);
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s;
+  }
+  .close-btn:hover { color: var(--ink); border-color: var(--ink-dim); }
+
+  .search-wrap { padding: 0 1.4rem 0.8rem; }
+  .search-wrap input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-wrap input:focus { border-color: rgba(240, 180, 41, 0.4); }
+
+  .idea-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.4rem 1rem 1.5rem;
+  }
+  .idea-list::-webkit-scrollbar { width: 6px; }
+  .idea-list::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+
+  .idea-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    margin: 0.5rem 0.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    animation: cardIn 0.3s ease;
+  }
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .idea-card p { font-size: 0.92rem; line-height: 1.5; word-break: break-word; }
+  .idea-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--ink-faint);
+    font-size: 0.72rem;
+  }
+  .idea-meta .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .idea-actions { margin-left: auto; display: flex; gap: 0.3rem; }
+  .icon-btn {
+    background: none;
+    border: none;
+    color: var(--ink-faint);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0.15rem 0.35rem;
+    border-radius: 6px;
+    transition: all 0.15s;
+  }
+  .icon-btn:hover { color: var(--gold); background: var(--gold-soft); }
+  .icon-btn.danger:hover { color: #ff6b6b; background: rgba(255, 107, 107, 0.12); }
+
+  .empty-list {
+    text-align: center;
+    color: var(--ink-faint);
+    padding: 3rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed;
+    bottom: 5.2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 0.6rem 1.2rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s;
+    z-index: 60;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---------- Floating idea blob (canvas) ---------- */
+  .floating-blob {
+    position: fixed;
+    z-index: 70;
+    pointer-events: none;
+    display: grid;
+    place-items: center;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 0.8rem;
+    color: #1a1408;
+    text-align: center;
+    padding: 0.5rem;
+    opacity: 0;
+  }
+
+  @media (max-width: 480px) {
+    h1 { font-size: 1.6rem; }
+    .stage { max-height: 44dvh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>The Idea Bucket <span class="tilde">~</span></h1>
+  <p class="tagline">drop a thought in. dip for old ones.</p>
+</header>
+
+<div class="stage" id="stage">
+  <svg viewBox="0 0 400 360" aria-label="The idea bucket">
+    <defs>
+      <clipPath id="bucketClip">
+        <path d="M118,130 L282,130 L262,330 L138,330 Z"/>
+      </clipPath>
+      <linearGradient id="liquidGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#f0b429" stop-opacity="0.9"/>
+        <stop offset="100%" stop-color="#b97e14" stop-opacity="0.95"/>
+      </linearGradient>
+      <linearGradient id="metalGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#2a3350"/>
+        <stop offset="50%" stop-color="#3d4a73"/>
+        <stop offset="100%" stop-color="#232b45"/>
+      </linearGradient>
+      <radialGradient id="rimGlow" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0%" stop-color="#f0b429" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#f0b429" stop-opacity="0"/>
+      </radialGradient>
+      <filter id="softBlur"><feGaussianBlur stdDeviation="3"/></filter>
+    </defs>
+
+    <!-- ambient glow behind bucket -->
+    <ellipse cx="200" cy="240" rx="150" ry="120" fill="url(#rimGlow)"/>
+
+    <!-- liquid inside clip: JS updates y of this group -->
+    <g clip-path="url(#bucketClip)">
+      <rect id="liquid" x="110" y="330" width="180" height="220" fill="url(#liquidGrad)"/>
+      <ellipse id="surface" cx="200" cy="330" rx="90" ry="10" fill="#ffd66b" opacity="0.55"/>
+      <g id="blobLayer"></g>
+    </g>
+
+    <!-- bucket body -->
+    <path d="M118,130 L282,130 L262,330 L138,330 Z"
+          fill="url(#metalGrad)" fill-opacity="0.35"
+          stroke="#4a5680" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M118,130 L282,130 L262,330 L138,330 Z"
+          fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-linejoin="round"/>
+
+    <!-- vertical sheen -->
+    <path d="M138,140 L152,140 L146,320 L134,320 Z" fill="rgba(255,255,255,0.06)"/>
+
+    <!-- rim -->
+    <ellipse cx="200" cy="130" rx="82" ry="14"
+             fill="none" stroke="#5b6a99" stroke-width="4"/>
+
+    <!-- handle -->
+    <path id="handle" d="M120,128 C120,70 280,70 280,128"
+          fill="none" stroke="#5b6a99" stroke-width="5" stroke-linecap="round"/>
+
+    <!-- drip hint when empty -->
+    <g id="dripHint" opacity="0">
+      <line x1="200" y1="58" x2="200" y2="86" stroke="#5b6a99" stroke-width="2.5" stroke-linecap="round"/>
+      <circle id="drip" cx="200" cy="92" r="4" fill="#f0b429"/>
+    </g>
+  </svg>
+</div>
+
+<div class="composer">
+  <input id="ideaInput" type="text" maxlength="280" placeholder="An idea for later… (Enter to drop it in)" autocomplete="off">
+  <button id="dropBtn" title="Drop it in" aria-label="Drop idea into bucket">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 4v12"/><path d="m6 10 6 6 6-6"/>
+    </svg>
+  </button>
+</div>
+
+<p class="counter"><strong id="count">0</strong> ideas in the bucket</p>
+
+<div class="bar">
+  <button id="dipBtn">🥄 Dip for inspiration</button>
+  <button id="openBtn">🗂 View ideas</button>
+  <button id="exportJsonBtn">⬇ JSON</button>
+  <button id="exportMdBtn">⬇ Markdown</button>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h2>Your ideas</h2>
+    <button class="close-btn" id="closeBtn" aria-label="Close drawer">✕</button>
+  </div>
+  <div class="search-wrap">
+    <input id="searchInput" type="text" placeholder="Search ideas…" autocomplete="off">
+  </div>
+  <div class="idea-list" id="ideaList"></div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const KEY = 'idea-bucket-v1';
+  const PALETTE = ['#f0b429','#7ec8a9','#8ea8ff','#f28c6b','#c78fff','#6bc7d6'];
+
+  // ---------- storage ----------
+  const load = () => {
+    try {
+      const raw = localStorage.getItem(KEY);
+      const data = raw ? JSON.parse(raw) : [];
+      return Array.isArray(data) ? data.filter(i => i && typeof i.text === 'string') : [];
+    } catch { return []; }
+  };
+  const save = (ideas) => {
+    try { localStorage.setItem(KEY, JSON.stringify(ideas)); }
+    catch { showToast('⚠️ Storage full — export and prune a few ideas'); }
+  };
+
+  let ideas = load();
+
+  // ---------- dom ----------
+  const $ = (id) => document.getElementById(id);
+  const stage = $('stage'), liquid = $('liquid'), surface = $('surface'),
+        blobLayer = $('blobLayer'), dripHint = $('dripHint'), drip = $('drip'),
+        input = $('ideaInput'), countEl = $('count'), toast = $('toast'),
+        drawer = $('drawer'), scrim = $('scrim'), list = $('ideaList'),
+        search = $('searchInput');
+
+  // ---------- toast ----------
+  let toastTimer;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+  }
+
+  // ---------- liquid level ----------
+  const TOP_Y = 150, BOTTOM_Y = 325;
+  function levelY(n) {
+    if (n === 0) return BOTTOM_Y;
+    return BOTTOM_Y - Math.min(n, 20) / 20 * (BOTTOM_Y - TOP_Y);
+  }
+
+  function renderBucket() {
+    const n = ideas.length;
+    const y = levelY(n);
+    liquid.setAttribute('y', y);
+    surface.setAttribute('cy', y);
+    surface.setAttribute('rx', Math.max(60, 90 - n * 1.2));
+    countEl.textContent = n;
+    dripHint.setAttribute('opacity', n === 0 ? '1' : '0');
+    renderBlobs(n);
+  }
+
+  // random stable blobs resting on the liquid surface
+  function renderBlobs(n) {
+    let html = '';
+    const show = Math.min(n, 14);
+    for (let i = 0; i < show; i++) {
+      const idea = ideas[i];
+      const x = 145 + ((i * 37 + 13) % 110);
+      const y = levelY(n) + 8 + (i % 3) * 14;
+      const r = 5 + (i % 3) * 2;
+      const color = idea ? idea.color : '#f0b429';
+      html += `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" opacity="0.85"/>`;
+    }
+    blobLayer.innerHTML = show > 14 ? html + `<text x="200" y="${levelY(n) + 60}" text-anchor="middle" fill="rgba(232,236,248,0.5)" font-size="11">+${n - 14} more…</text>` : html;
+  }
+
+  // ---------- drop animation ----------
+  function animateDrop(color) {
+    const rect = stage.getBoundingClientRect();
+    const blob = document.createElement('div');
+    blob.className = 'floating-blob';
+    blob.style.left = (rect.left + rect.width / 2 - 40) + 'px';
+    blob.style.top = '-60px';
+    blob.style.width = '80px';
+    blob.style.height = '80px';
+    blob.style.background = `radial-gradient(circle at 35% 30%, ${color}, ${shade(color, -35)})`;
+    blob.style.borderRadius = '50%';
+    blob.textContent = '✦';
+    document.body.appendChild(blob);
+    requestAnimationFrame(() => {
+      blob.style.transition = 'top 0.55s cubic-bezier(0.55,0,1,0.45), transform 0.55s, opacity 0.3s 0.45s';
+      blob.style.top = (rect.top + rect.height * 0.55) + 'px';
+      blob.style.transform = 'scale(0.35)';
+      blob.style.opacity = '0';
+    });
+    setTimeout(() => blob.remove(), 650);
+    // slosh
+    surface.style.transition = 'none';
+    surface.setAttribute('ry', '16');
+    requestAnimationFrame(() => {
+      surface.style.transition = 'ry 0.6s ease';
+      surface.setAttribute('ry', '10');
+    });
+  }
+
+  function shade(hex, pct) {
+    const num = parseInt(hex.slice(1), 16);
+    const r = Math.min(255, Math.max(0, (num >> 16) + pct));
+    const g = Math.min(255, Math.max(0, (num >> 8 & 0xff) + pct));
+    const b = Math.min(255, Math.max(0, (num & 0xff) + pct));
+    return `rgb(${r},${g},${b})`;
+  }
+
+  // ---------- actions ----------
+  function addIdea() {
+    const text = input.value.trim();
+    if (!text) return;
+    const idea = {
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+      text,
+      color: PALETTE[Math.floor(Math.random() * PALETTE.length)],
+      created: Date.now(),
+      lastViewed: Date.now()
+    };
+    ideas.unshift(idea);
+    save(ideas);
+    input.value = '';
+    renderBucket();
+    animateDrop(idea.color);
+    if (drawer.classList.contains('open')) renderList();
+  }
+
+  function dip() {
+    if (ideas.length === 0) {
+      showToast('🪣 The bucket is empty — drop an idea in first');
+      return;
+    }
+    const idea = ideas[Math.floor(Math.random() * ideas.length)];
+    idea.lastViewed = Date.now();
+    save(ideas);
+
+    // rise-from-the-bucket animation: golden shimmer + toast carrying the idea
+    const rect = stage.getBoundingClientRect();
+    const blob = document.createElement('div');
+    blob.className = 'floating-blob';
+    const size = 150;
+    blob.style.width = blob.style.height = size + 'px';
+    blob.style.left = (rect.left + rect.width / 2 - size / 2) + 'px';
+    blob.style.top = (rect.top + rect.height * 0.55) + 'px';
+    blob.style.background = `radial-gradient(circle at 35% 30%, ${idea.color}, ${shade(idea.color, -40)})`;
+    blob.style.borderRadius = '50%';
+    blob.style.padding = '1rem';
+    blob.style.fontSize = '0.75rem';
+    blob.style.color = '#fff';
+    blob.textContent = idea.text.length > 90 ? idea.text.slice(0, 87) + '…' : idea.text;
+    document.body.appendChild(blob);
+    requestAnimationFrame(() => {
+      blob.style.transition = 'top 0.9s ease-out, opacity 0.9s, transform 0.9s';
+      blob.style.top = (rect.top - 40) + 'px';
+      blob.style.opacity = '0.95';
+      blob.style.transform = 'scale(1.05)';
+    });
+    setTimeout(() => {
+      blob.style.transition = 'opacity 0.6s';
+      blob.style.opacity = '0';
+      setTimeout(() => blob.remove(), 650);
+    }, 2200);
+
+    const age = Math.floor((Date.now() - idea.created) / 86400000);
+    showToast(`🥄 Dipped up an idea from ${age === 0 ? 'today' : age + ' day' + (age === 1 ? '' : 's') + ' ago'}`);
+  }
+
+  // ---------- drawer ----------
+  function openDrawer() {
+    drawer.classList.add('open');
+    scrim.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    renderList();
+    setTimeout(() => search.focus(), 350);
+  }
+  function closeDrawer() {
+    drawer.classList.remove('open');
+    scrim.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    search.value = '';
+  }
+
+  function renderList() {
+    const q = search.value.trim().toLowerCase();
+    const filtered = ideas.filter(i => !q || i.text.toLowerCase().includes(q));
+    if (filtered.length === 0) {
+      list.innerHTML = `<div class="empty-list">${q ? 'Nothing matches “' + escapeHtml(q) + '”' : 'The bucket is empty.<br>Drop your first idea above ✦'}</div>`;
+      return;
+    }
+    list.innerHTML = filtered.map(i => `
+      <div class="idea-card" data-id="${i.id}">
+        <p>${escapeHtml(i.text)}</p>
+        <div class="idea-meta">
+          <span class="dot" style="background:${i.color}"></span>
+          <span>${new Date(i.created).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+          <span class="idea-actions">
+            <button class="icon-btn copy-btn" title="Copy">⧉</button>
+            <button class="icon-btn danger del-btn" title="Delete">✕</button>
+          </span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  list.addEventListener('click', (e) => {
+    const card = e.target.closest('.idea-card');
+    if (!card) return;
+    const id = card.dataset.id;
+    if (e.target.closest('.del-btn')) {
+      ideas = ideas.filter(i => i.id !== id);
+      save(ideas);
+      renderBucket();
+      renderList();
+      showToast('🗑 Idea removed');
+    } else if (e.target.closest('.copy-btn')) {
+      const idea = ideas.find(i => i.id === id);
+      if (idea) {
+        navigator.clipboard?.writeText(idea.text).then(
+          () => showToast('⧉ Copied to clipboard'),
+          () => showToast('⚠️ Could not copy')
+        );
+      }
+    }
+  });
+
+  // ---------- exports ----------
+  function download(filename, content, type) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], { type }));
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('⬇ Exported ' + filename);
+  }
+
+  $('exportJsonBtn').addEventListener('click', () => {
+    download('idea-bucket.json', JSON.stringify(ideas, null, 2), 'application/json');
+  });
+  $('exportMdBtn').addEventListener('click', () => {
+    const lines = ['# The Idea Bucket', '', ...ideas.map(i =>
+      `- **${new Date(i.created).toLocaleDateString()}** — ${i.text}`)];
+    download('idea-bucket.md', lines.join('\n'), 'text/markdown');
+  });
+
+  // ---------- events ----------
+  $('dropBtn').addEventListener('click', addIdea);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') addIdea(); });
+  $('dipBtn').addEventListener('click', dip);
+  $('openBtn').addEventListener('click', openDrawer);
+  $('closeBtn').addEventListener('click', closeDrawer);
+  scrim.addEventListener('click', closeDrawer);
+  search.addEventListener('input', renderList);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+
+  // gentle idle bob for the handle
+  let t = 0;
+  setInterval(() => {
+    t += 0.05;
+    const handle = document.getElementById('handle');
+    handle.setAttribute('d', `M120,128 C120,${70 + Math.sin(t) * 3} 280,${70 + Math.sin(t) * 3} 280,128`);
+  }, 50);
+
+  // ---------- init ----------
+  renderBucket();
+})();
+</script>
+</body>
+</html>
