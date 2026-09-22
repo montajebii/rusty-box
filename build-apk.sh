@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# build-apk.sh — one command to build the Idea Bucket APK, from any fresh shell/login.
+#   bash build-apk.sh          → syncs web assets, builds, refreshes idea-bucket-debug.apk
+#   bash check-apk.sh          → then run the 7-gate pre-release check
+set -euo pipefail
+cd "$(dirname "$0")"
+
+# Self-contained environment (same pins as check-apk.sh) — survives reboot/logout.
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64   # system default JDK breaks AGP
+export ANDROID_HOME="$HOME/Android/Sdk"
+
+# 1. Refresh bundled web assets from the web app (needs node_modules; skip if absent)
+if [ -d node_modules ]; then
+  npm run cap:sync
+else
+  echo "!! node_modules missing — run 'npm install' first (cap sync skipped)" >&2
+fi
+
+# 2. Build with the Gradle wrapper (downloads nothing from Google; mirrors are prewired)
+( cd android && ./gradlew assembleDebug --console=plain )
+
+# 3. Refresh the project-root copy
+cp android/app/build/outputs/apk/debug/app-debug.apk idea-bucket-debug.apk
+echo "✔ idea-bucket-debug.apk refreshed — now run: bash check-apk.sh"

@@ -7,6 +7,16 @@ Package: `com.ideabucket.app` · App name: **Idea Bucket** · minSdk 24 (Android
 
 ---
 
+## Build (reboot-proof, no environment setup needed)
+
+```bash
+bash build-apk.sh    # sync + assembleDebug + refresh idea-bucket-debug.apk
+bash check-apk.sh    # 7-gate pre-release check (must pass before installing)
+```
+
+Both scripts pin their own `JAVA_HOME` and SDK paths, and `~/.profile` sources
+`~/Android/env.sh` on login — so APK builds work in any fresh terminal after a reboot.
+
 ## ⚠️ TEST BEFORE RELEASE — one command
 
 The 2026-09-22 release **crashed instantly on a Galaxy A52s (Android 14)**. The tests
