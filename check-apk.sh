@@ -36,9 +36,11 @@ done
 APK="${1:-android/app/build/outputs/apk/debug/app-debug.apk}"
 BT="$BUILD_TOOLS"
 FAIL=0
-step() { printf '\n== %s ==\n' "$1"; }
+CURRENT_STEP=""
+FAILED=()   # in gate order, for the CI annotation at the end
+step() { CURRENT_STEP="$1"; printf '\n== %s ==\n' "$1"; }
 ok()   { printf '  \033[32mOK\033[0m  %s\n' "$1"; }
-bad()  { printf '  \033[31mFAIL\033[0m %s\n' "$1"; FAIL=1; }
+bad()  { printf '  \033[31mFAIL\033[0m %s\n' "$1"; FAIL=1; FAILED+=("[$CURRENT_STEP] $1"); }
 
 step "1/8 Unit tests (Robolectric)"
 if (cd android && ./gradlew -q "${GRADLE_JDK_ARGS[@]}" :app:testDebugUnitTest) \
@@ -108,5 +110,12 @@ if [ "$FAIL" -eq 0 ]; then
   printf '\033[32m✔ PRE-RELEASE CHECK PASSED — %s is ready to install.\033[0m\n' "$(basename "$APK")"
 else
   printf '\033[31m✘ PRE-RELEASE CHECK FAILED — do not ship this APK.\033[0m\n'
+  # On CI, publish the failures as an annotation. A public repository's job log needs a
+  # signed-in session to read, while annotations are readable by anyone (and appear on the
+  # commit's checks view) — so a red build names the gate that broke without a login.
+  if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    printf '::error title=check-apk.sh: %s gate failure(s)::%s\n' \
+      "${#FAILED[@]}" "$(printf '%s | ' "${FAILED[@]}")"
+  fi
 fi
 exit $FAIL
