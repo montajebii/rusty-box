@@ -65,10 +65,20 @@ fi
 
 step "3/8 Manifest badging"
 BADGE=$("$BT/aapt2" dump badging "$APK" 2>/dev/null) || BADGE=""
-grep -q "^package: name='com.ideabucket.app'" <<<"$BADGE" && ok "package com.ideabucket.app" || bad "wrong/missing package"
-grep -qE "application-label:['\"]Idea Bucket['\"]" <<<"$BADGE" && ok "label 'Idea Bucket'" || bad "wrong/missing label"
-grep -q "sdkVersion:'24'" <<<"$BADGE" && ok "minSdk 24" || bad "minSdk drifted"
-grep -q "targetSdkVersion:'35'" <<<"$BADGE" && ok "targetSdk 35" || bad "targetSdk drifted"
+# Read the values out first, so a failure reports what the APK actually says instead of only
+# "drifted" — on CI the gate message is the only thing visible without a signed-in session.
+PKG=$(grep -oE "^package: name='[^']*'" <<<"$BADGE" | head -1)
+LABEL=$(grep -oE "^application-label:'[^']*'" <<<"$BADGE" | head -1)
+MINSDK=$(grep -oE "^sdkVersion:'[^']*'" <<<"$BADGE" | head -1)
+TARGETSDK=$(grep -oE "^targetSdkVersion:'[^']*'" <<<"$BADGE" | head -1)
+grep -q "^package: name='com.ideabucket.app'" <<<"$BADGE" && ok "package com.ideabucket.app" \
+  || bad "wrong/missing package — badging says ${PKG:-<no package line>}"
+grep -qE "application-label:['\"]Idea Bucket['\"]" <<<"$BADGE" && ok "label 'Idea Bucket'" \
+  || bad "wrong/missing label — badging says ${LABEL:-<no application-label line>}"
+grep -q "sdkVersion:'24'" <<<"$BADGE" && ok "minSdk 24" \
+  || bad "minSdk drifted — saw ${MINSDK:-<no sdkVersion line>}; badging: $(tr '\n' '~' <<<"$BADGE" | cut -c1-700)"
+grep -q "targetSdkVersion:'35'" <<<"$BADGE" && ok "targetSdk 35" \
+  || bad "targetSdk drifted — saw ${TARGETSDK:-<no targetSdkVersion line>}"
 grep -q "launchable-activity" <<<"$BADGE" && ok "launchable activity present" || bad "no LAUNCHER activity"
 # A release states the version it must carry (release.yml passes these). If the APK still
 # reports the local defaults, the -PversionName/-PversionCode plumbing did nothing.
