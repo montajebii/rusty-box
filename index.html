@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Idea Bucket</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AA%A3%3C/text%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg-deep: #0a0e1a;
@@ -27,7 +25,8 @@
   html, body { height: 100%; }
 
   body {
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    position: relative;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
     background:
       radial-gradient(ellipse 120% 90% at 50% -20%, var(--bg-glow) 0%, transparent 60%),
       radial-gradient(ellipse 80% 60% at 85% 110%, rgba(240,180,41,0.05) 0%, transparent 55%),
@@ -38,6 +37,7 @@
     flex-direction: column;
     align-items: center;
     overflow-x: hidden;
+    overscroll-behavior: contain;
   }
 
   /* ---------- Header ---------- */
@@ -48,12 +48,12 @@
     text-align: center;
   }
   h1 {
-    font-family: 'Fraunces', serif;
-    font-weight: 600;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 700;
     font-size: 2rem;
     letter-spacing: -0.02em;
   }
-  h1 .tilde { color: var(--gold); font-style: italic; }
+  h1 .tilde { color: var(--gold); font-style: italic; font-family: 'Georgia', 'Times New Roman', serif; }
   .tagline {
     color: var(--ink-dim);
     font-size: 0.85rem;
@@ -66,9 +66,10 @@
     position: relative;
     width: min(92vw, 560px);
     aspect-ratio: 1 / 0.9;
-    max-height: 52dvh;
+    max-height: var(--stage-max);
     margin-top: 0.5rem;
     user-select: none;
+    flex-shrink: 0;
   }
 
   svg { width: 100%; height: 100%; display: block; }
@@ -123,14 +124,19 @@
 
   /* ---------- Bottom bar ---------- */
   .bar {
-    margin-top: auto;
-    width: 100%;
-    max-width: 680px;
+    position: fixed;
+    left: 50%;
+    right: 50%;
+    bottom: max(5.2rem, env(safe-area-inset-bottom) + 1rem);
+    width: min(92vw, 560px);
+    transform: translateX(-50%);
     display: flex;
     justify-content: center;
     gap: 0.5rem;
     padding: 1rem 1rem 1.4rem;
     flex-wrap: wrap;
+    box-sizing: border-box;
+    z-index: 30;
   }
   .bar button {
     background: transparent;
@@ -164,8 +170,7 @@
 
   .drawer {
     position: fixed;
-    top: 0; right: 0;
-    height: 100dvh;
+    inset: 0 auto 0 0;
     width: min(88vw, 420px);
     background: var(--panel);
     border-left: 1px solid var(--line);
@@ -175,8 +180,11 @@
     z-index: 50;
     display: flex;
     flex-direction: column;
+    overscroll-behavior: contain;
   }
   .drawer.open { transform: translateX(0); }
+
+  body.app--modal-open { overflow: hidden; -webkit-overflow-scrolling: auto; }
 
   .drawer-head {
     padding: 1.4rem 1.4rem 0.8rem;
@@ -185,9 +193,10 @@
     justify-content: space-between;
   }
   .drawer-head h2 {
-    font-family: 'Fraunces', serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
     font-size: 1.3rem;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: -0.01em;
   }
   .close-btn {
     background: none;
@@ -229,18 +238,37 @@
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--line);
     border-radius: 12px;
-    padding: 0.9rem 1rem;
     margin: 0.5rem 0.4rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
     animation: cardIn 0.3s ease;
+    overflow: hidden;
   }
   @keyframes cardIn {
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  .idea-card p { font-size: 0.92rem; line-height: 1.5; word-break: break-word; }
+  .idea-card-head {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    margin: 0.5rem 0.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    text-align: left;
+    font-family: inherit;
+    color: inherit;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .idea-card-head:hover { background: rgba(255, 255, 255, 0.06); }
+  .idea-card-head[role="button"] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .idea-card-head:focus-visible {
+    outline: 2px solid rgba(240, 180, 41, 0.6);
+    outline-offset: 2px;
+  }
+  .idea-card-head p { font-size: 0.92rem; line-height: 1.5; word-break: break-word; color: var(--ink); }
   .idea-meta {
     display: flex;
     align-items: center;
@@ -262,6 +290,10 @@
   }
   .icon-btn:hover { color: var(--gold); background: var(--gold-soft); }
   .icon-btn.danger:hover { color: #ff6b6b; background: rgba(255, 107, 107, 0.12); }
+  .icon-btn.view-btn {
+    font-size: 0.9rem;
+    padding: 0.15rem 0.4rem;
+  }
 
   .empty-list {
     text-align: center;
@@ -270,12 +302,368 @@
     font-size: 0.9rem;
   }
 
-  /* ---------- Toast ---------- */
+  /* ---------- Floating idea blob (canvas) ---------- */
+  .floating-blob {
+    position: fixed;
+    z-index: 70;
+    pointer-events: none;
+    display: grid;
+    place-items: center;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-style: italic;
+    font-size: 0.8rem;
+    color: #1a1408;
+    text-align: center;
+    padding: 0.5rem;
+    opacity: 0;
+  }
+
+  /* ---------- Idea detail page ---------- */
+  .idea-page {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding: max(1rem, env(safe-area-inset-bottom)) 1rem max(2rem, env(safe-area-inset-bottom) + 1rem);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .idea-page.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .idea-page-scrim {
+    position: absolute;
+    inset: 0;
+    background: rgba(4, 6, 12, 0.55);
+    backdrop-filter: blur(3px);
+  }
+  .idea-page-card {
+    position: relative;
+    width: min(92vw, 560px);
+    max-height: min(88vh, 92dvh, 640px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    transform: translateY(var(--kb-shift, 0px));
+    transition: transform 0.18s ease-out;
+    -webkit-overflow-scrolling: auto;
+    overscroll-behavior: contain;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    border-radius: 20px 20px 0 0;
+    padding: 1.4rem 1.5rem 1.6rem;
+    transform: translateY(20px);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.5);
+  }
+  .idea-page.open .idea-page-card {
+    transform: translateY(0);
+  }
+  .idea-page-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+  .idea-page-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px var(--gold-soft);
+  }
+  .idea-page-tag {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-left: auto;
+  }
+  .idea-page-close {
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    color: var(--ink-dim);
+    cursor: pointer;
+    font-size: 0.9rem;
+    margin-left: auto;
+    transition: all 0.2s;
+  }
+  .idea-page-close:hover {
+    color: var(--ink);
+    border-color: var(--ink-dim);
+  }
+  .idea-page-title {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+    line-height: 1.35;
+    color: var(--ink);
+    margin-bottom: 1.1rem;
+    word-break: break-word;
+  }
+  .idea-page-meta {
+    display: flex;
+    gap: 1rem;
+    padding: 0.9rem 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 1.1rem;
+  }
+  .idea-page-meta-cell {
+    flex: 1;
+  }
+  .idea-page-meta-cell--right {
+    text-align: right;
+  }
+  .idea-page-meta-label {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 0.25rem;
+  }
+  .idea-page-meta-val {
+    font-size: 0.92rem;
+    color: var(--ink);
+  }
+  .idea-page-id {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+    word-break: break-all;
+  }
+  .idea-page-actions {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .idea-page-btn {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    border-radius: 999px;
+    padding: 0.6rem 1rem;
+    font-family: inherit;
+    font-size: 0.82rem;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+  .idea-page-btn:hover {
+    border-color: rgba(240, 180, 41, 0.4);
+    color: var(--gold);
+  }
+  .idea-page-btn.danger {
+    color: #ff6b6b;
+    border-color: rgba(255, 107, 107, 0.25);
+  }
+  .idea-page-btn.danger:hover {
+    background: rgba(255, 107, 107, 0.1);
+    border-color: rgba(255, 107, 107, 0.5);
+    color: #ff6b6b;
+  }
+
+  /* ---------- Idea page: edit mode ---------- */
+  .idea-page-edit {
+    width: 100%;
+    min-height: 5.6rem;
+    resize: vertical;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 0.8rem 0.9rem;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 1.05rem;
+    line-height: 1.45;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .idea-page-edit:focus {
+    border-color: rgba(240, 180, 41, 0.5);
+    box-shadow: 0 0 0 3px var(--gold-soft);
+  }
+  .idea-page-count {
+    margin: 0.35rem 0 1rem;
+    text-align: right;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+  }
+  .idea-page-btn.idea-page-save {
+    color: var(--gold);
+    border-color: rgba(240, 180, 41, 0.45);
+    background: var(--gold-soft);
+  }
+  .idea-page-btn.idea-page-save:hover {
+    filter: brightness(1.08);
+    color: var(--gold);
+  }
+  .idea-page-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+    filter: none;
+  }
+  .idea-page-edit-label {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 0.4rem;
+  }
+
+  @media (max-width: 480px) {
+    h1 { font-size: 1.6rem; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif; }
+    .drawer-head h2 { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif; }
+    .idea-page-title { font-size: 1.25rem; }
+    .idea-page-edit { font-size: 1rem; }
+    .idea-page-card { padding: 1.1rem 1.1rem 1.3rem; }
+    .idea-page-meta { flex-wrap: wrap; gap: 0.6rem; }
+    .idea-page-meta-cell--right { flex: 0 0 auto; }
+    /* four actions (edit/copy/share/delete) sit as a tidy 2×2 grid on phones */
+    .idea-page-actions { gap: 0.5rem; }
+    .idea-page-btn { flex: 1 1 calc(50% - 0.25rem); padding: 0.6rem 0.5rem; }
+  }
+
+  /* ---------- Buckets: an idea can be filed into several ---------- */
+  .bucket-bar {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0 1.4rem 0.6rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .bucket-bar::-webkit-scrollbar { display: none; }
+  .bucket-bar[hidden] { display: none; }
+  .bucket-hint {
+    padding: 0 1.4rem 0.7rem;
+    color: var(--ink-faint);
+    font-size: 0.68rem;
+    letter-spacing: 0.03em;
+  }
+  .bucket-hint[hidden] { display: none; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: 0 0 auto;
+    max-width: 12rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    border-radius: 999px;
+    padding: 0.34rem 0.75rem;
+    font-family: inherit;
+    font-size: 0.76rem;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: all 0.18s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  .chip .chip-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    background: var(--chip-color, var(--gold));
+  }
+  .chip .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip .chip-count { color: var(--ink-faint); font-size: 0.7rem; }
+  .chip:hover { color: var(--gold); border-color: rgba(240, 180, 41, 0.4); }
+  .chip.active,
+  .chip[aria-pressed="true"] {
+    color: var(--chip-color, var(--gold));
+    border-color: var(--chip-color, var(--gold));
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .chip.active .chip-count { color: var(--ink-dim); }
+  .chip.ghost { color: var(--ink-faint); border-style: dashed; }
+  .chip.chip-static { cursor: default; padding: 0.18rem 0.55rem; font-size: 0.68rem; }
+  .chip.chip-static:hover { color: var(--ink-dim); border-color: var(--line); }
+  .chip:focus-visible { outline: 2px solid rgba(240, 180, 41, 0.6); outline-offset: 2px; }
+
+  /* composer: which bucket(s) the next idea is filed into */
+  .composer-buckets {
+    width: min(92vw, 560px);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .composer-buckets::-webkit-scrollbar { display: none; }
+  .composer-buckets .into-label {
+    flex: 0 0 auto;
+    color: var(--ink-faint);
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* idea cards: the buckets an idea belongs to */
+  .bucket-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  /* idea page */
+  .idea-page-buckets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 1.1rem;
+  }
+  .idea-page-nobucket {
+    color: var(--ink-faint);
+    font-size: 0.78rem;
+  }
+  .edit-buckets-head {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0.9rem 0 0.45rem;
+  }
+  .edit-buckets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 1.1rem;
+  }
+
+  /* ---------- Toast: keep clear of keyboard / safe areas ---------- */
   .toast {
     position: fixed;
-    bottom: 5.2rem;
     left: 50%;
+    bottom: max(5.2rem, env(safe-area-inset-bottom) + 1rem);
     transform: translateX(-50%) translateY(20px);
+    max-width: min(92vw, 460px);
     background: var(--panel);
     border: 1px solid var(--line);
     color: var(--ink);
@@ -285,40 +673,23 @@
     opacity: 0;
     pointer-events: none;
     transition: all 0.3s;
-    z-index: 60;
-  }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  /* ---------- Floating idea blob (canvas) ---------- */
-  .floating-blob {
-    position: fixed;
-    z-index: 70;
-    pointer-events: none;
-    display: grid;
-    place-items: center;
-    font-family: 'Fraunces', serif;
-    font-style: italic;
-    font-size: 0.8rem;
-    color: #1a1408;
+    z-index: 90;
     text-align: center;
-    padding: 0.5rem;
-    opacity: 0;
   }
-
-  @media (max-width: 480px) {
-    h1 { font-size: 1.6rem; }
-    .stage { max-height: 44dvh; }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>The Idea Bucket <span class="tilde">~</span></h1>
+  <h1>  The Idea Bucket <span class="tilde">~</span></h1>
   <p class="tagline">drop a thought in. dip for old ones.</p>
 </header>
 
-<div class="stage" id="stage">
+<div class="stage" id="stage" style="--stage-max: clamp(280px, 70vh, 504px);">
   <svg viewBox="0 0 400 360" aria-label="The idea bucket">
     <defs>
       <clipPath id="bucketClip">
@@ -385,7 +756,9 @@
   </button>
 </div>
 
-<p class="counter"><strong id="count">0</strong> ideas in the bucket</p>
+<div class="composer-buckets" id="composerBuckets"></div>
+
+<p class="counter"><strong id="count">0</strong> <span id="countLabel">ideas in the bucket</span></p>
 
 <div class="bar">
   <button id="dipBtn">🥄 Dip for inspiration</button>
@@ -402,8 +775,10 @@
     <button class="close-btn" id="closeBtn" aria-label="Close drawer">✕</button>
   </div>
   <div class="search-wrap">
-    <input id="searchInput" type="text" placeholder="Search ideas…" autocomplete="off">
+    <input id="searchInput" type="text" placeholder="Search ideas and buckets…" autocomplete="off">
   </div>
+  <div class="bucket-bar" id="bucketBar" hidden></div>
+  <p class="bucket-hint" id="bucketHint" hidden></p>
   <div class="idea-list" id="ideaList"></div>
 </aside>
 
@@ -416,12 +791,29 @@
   const KEY = 'idea-bucket-v1';
   const PALETTE = ['#f0b429','#7ec8a9','#8ea8ff','#f28c6b','#c78fff','#6bc7d6'];
 
+  // ---------- Capacitor native bridge (Android) ----------
+  // On Android the app runs inside a Capacitor WebView, where <a download> on a blob:
+  // URL is ignored, so exports go through the native Filesystem + Share plugins. In a
+  // plain browser these are absent and we fall back to a normal download.
+  const Cap = window.Capacitor;
+  const NATIVE = !!(Cap && typeof Cap.isNativePlatform === 'function' && Cap.isNativePlatform());
+  function capPlugin(name) {
+    if (!Cap) return null;
+    try {
+      if (Cap.Plugins && Cap.Plugins[name]) return Cap.Plugins[name];
+      if (typeof Cap.registerPlugin === 'function') return Cap.registerPlugin(name);
+    } catch (_) { /* plugin not available on this platform */ }
+    return null;
+  }
+  const CapFilesystem = NATIVE ? capPlugin('Filesystem') : null;
+  const CapShare = NATIVE ? capPlugin('Share') : null;
+
   // ---------- storage ----------
   const load = () => {
     try {
       const raw = localStorage.getItem(KEY);
       const data = raw ? JSON.parse(raw) : [];
-      return Array.isArray(data) ? data.filter(i => i && typeof i.text === 'string') : [];
+      return Array.isArray(data) ? data.filter(i => i && typeof i.text === 'string').map(normalizeIdea) : [];
     } catch { return []; }
   };
   const save = (ideas) => {
@@ -429,7 +821,63 @@
     catch { showToast('⚠️ Storage full — export and prune a few ideas'); }
   };
 
+  // ---------- buckets (model) ----------
+  // A bucket is just a name, and every idea carries its own list of them, so an
+  // idea can sit in several buckets at once while storage stays a flat array of
+  // ideas. Ideas have no bucket registry of their own: a bucket exists for exactly
+  // as long as some idea mentions it, which is why deleting one only unfiles its
+  // ideas (they are never deleted with it).
+  const BUCKET_MAX = 24;
+  const CARD_CHIPS = 2;
+
+  function ideaBuckets(idea) {
+    return Array.isArray(idea.buckets) ? idea.buckets.filter(b => typeof b === 'string' && b) : [];
+  }
+  function inBucket(idea, name) { return ideaBuckets(idea).includes(name); }
+  function cleanBucketName(raw) {
+    return String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim().slice(0, BUCKET_MAX);
+  }
+  function normalizeIdea(idea) {
+    const kept = [];
+    for (const raw of ideaBuckets(idea)) {
+      const name = cleanBucketName(raw);
+      if (name && !kept.includes(name)) kept.push(name);
+    }
+    idea.buckets = kept;
+    return idea;
+  }
+  function bucketIndex() {
+    const counts = new Map();
+    for (const idea of ideas) {
+      for (const name of ideaBuckets(idea)) counts.set(name, (counts.get(name) || 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([name, count]) => ({ name, count }));
+  }
+  // Every bucket gets a stable colour derived from its name.
+  function bucketColor(name) {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 9973;
+    return PALETTE[h % PALETTE.length];
+  }
+  function bucketChip(name, opts) {
+    const o = opts || {};
+    const tag = o.button ? 'button' : 'span';
+    const cls = o.button ? 'chip' + (o.active ? ' active' : '') : 'chip chip-static';
+    const attr = o.attr || 'data-bucket';
+    const attrs = o.button
+      ? ` type="button" ${attr}="${escapeHtml(name)}" aria-pressed="${o.active ? 'true' : 'false'}" title="${escapeHtml(o.title || name)}"`
+      : '';
+    const count = o.count == null ? '' : `<span class="chip-count">${o.count}</span>`;
+    return `<${tag} class="${cls}"${attrs} style="--chip-color:${bucketColor(name)}"><span class="chip-dot"></span><span class="chip-label">${escapeHtml(name)}</span>${count}</${tag}>`;
+  }
+
   let ideas = load();
+
+  // The open idea page's keyboard-fit hook. Registered once (see the visualViewport
+  // section) so opening/closing pages never leaks resize listeners.
+  let _activeOverlayFit = null;
 
   // ---------- dom ----------
   const $ = (id) => document.getElementById(id);
@@ -437,7 +885,9 @@
         blobLayer = $('blobLayer'), dripHint = $('dripHint'), drip = $('drip'),
         input = $('ideaInput'), countEl = $('count'), toast = $('toast'),
         drawer = $('drawer'), scrim = $('scrim'), list = $('ideaList'),
-        search = $('searchInput');
+        search = $('searchInput'), countLabel = $('countLabel'),
+        bucketBar = $('bucketBar'), bucketHint = $('bucketHint'),
+        composerBuckets = $('composerBuckets');
 
   // ---------- toast ----------
   let toastTimer;
@@ -448,6 +898,93 @@
     toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
   }
 
+  // ---------- buckets (view) ----------
+  let activeBucket = null;      // drawer filter; null = every bucket
+  let pendingBuckets = [];      // buckets the next dropped idea is filed into
+
+  function visibleIdeas() {
+    const q = search.value.trim().toLowerCase();
+    return ideas.filter(i =>
+      (!activeBucket || inBucket(i, activeBucket)) &&
+      (!q || i.text.toLowerCase().includes(q) || ideaBuckets(i).some(b => b.toLowerCase().includes(q))));
+  }
+
+  function renderBucketBar() {
+    const buckets = bucketIndex();
+    bucketBar.hidden = buckets.length === 0;
+    bucketBar.innerHTML =
+      `<button type="button" class="chip${activeBucket ? '' : ' active'}" data-all style="--chip-color:#f0b429" title="Show every idea"><span class="chip-label">All</span><span class="chip-count">${ideas.length}</span></button>` +
+      buckets.map(b => bucketChip(b.name, {
+        button: true,
+        active: activeBucket === b.name,
+        count: b.count,
+        title: `Show only “${b.name}” — hold to delete this bucket`
+      })).join('');
+    bucketHint.hidden = activeBucket === null;
+    if (activeBucket !== null) {
+      bucketHint.textContent = `showing “${activeBucket}” — tap All to clear, hold a bucket to delete it`;
+    }
+  }
+
+  function renderComposerBuckets() {
+    // a bucket created a second ago has no members yet, so it is not in the index —
+    // it still has to be visible (and selected) or you cannot see what you armed
+    const names = bucketIndex().map(b => b.name);
+    for (const pending of pendingBuckets) if (!names.includes(pending)) names.push(pending);
+    composerBuckets.innerHTML =
+      `<span class="into-label">${pendingBuckets.length ? 'into' : 'file into'}</span>` +
+      names.map(name => bucketChip(name, {
+        button: true,
+        active: pendingBuckets.includes(name),
+        title: pendingBuckets.includes(name) ? `Stop filing new ideas into “${name}”` : `File new ideas into “${name}”`
+      })).join('') +
+      `<button type="button" class="chip ghost" data-new-bucket title="Create a bucket">＋ new</button>`;
+  }
+
+  function refreshBuckets() {
+    // a filter pointing at a bucket nobody is in any more has to fall back to All
+    if (activeBucket && !ideas.some(i => inBucket(i, activeBucket))) activeBucket = null;
+    renderBucketBar();
+    renderComposerBuckets();
+    renderBucket();
+    renderList();
+  }
+
+  function askNewBucketName() {
+    const raw = window.prompt('Name this bucket — an idea can be in several:', '');
+    if (raw === null) return null;
+    const name = cleanBucketName(raw);
+    if (!name) { showToast('⚠️ Give the bucket a name'); return null; }
+    // reuse an existing bucket instead of creating "Work" next to "work"
+    const known = [...bucketIndex().map(b => b.name), ...pendingBuckets];
+    const existing = known.find(n => n.toLowerCase() === name.toLowerCase());
+    return existing || name;
+  }
+
+  function togglePendingBucket(name) {
+    pendingBuckets = pendingBuckets.includes(name)
+      ? pendingBuckets.filter(b => b !== name)
+      : [...pendingBuckets, name];
+    renderComposerBuckets();
+  }
+
+  function deleteBucketFlow(name) {
+    const members = ideas.filter(i => inBucket(i, name));
+    const ok = window.confirm(
+      `Delete the “${name}” bucket?\n\n` +
+      (members.length === 1
+        ? 'The idea in it stays in the bucket — it just stops being filed under this one.'
+        : `The ${members.length} ideas in it stay in the bucket — they just stop being filed under this one.`)
+    );
+    if (!ok) return;
+    ideas.forEach(i => { if (inBucket(i, name)) i.buckets = ideaBuckets(i).filter(b => b !== name); });
+    if (activeBucket === name) activeBucket = null;
+    pendingBuckets = pendingBuckets.filter(b => b !== name);
+    save(ideas);
+    refreshBuckets();
+    showToast(`🗂 “${name}” removed from ${members.length} idea${members.length === 1 ? '' : 's'}`);
+  }
+
   // ---------- liquid level ----------
   const TOP_Y = 150, BOTTOM_Y = 325;
   function levelY(n) {
@@ -455,35 +992,43 @@
     return BOTTOM_Y - Math.min(n, 20) / 20 * (BOTTOM_Y - TOP_Y);
   }
 
+  // The glass shows the bucket you are looking at: the level, the counter and the
+  // blobs all follow the active filter instead of always showing every idea.
   function renderBucket() {
-    const n = ideas.length;
+    const vis = visibleIdeas();
+    const n = vis.length;
     const y = levelY(n);
     liquid.setAttribute('y', y);
     surface.setAttribute('cy', y);
     surface.setAttribute('rx', Math.max(60, 90 - n * 1.2));
     countEl.textContent = n;
+    countLabel.textContent = activeBucket
+      ? `in “${activeBucket}”`
+      : (n === 1 ? 'idea in the bucket' : 'ideas in the bucket');
     dripHint.setAttribute('opacity', n === 0 ? '1' : '0');
-    renderBlobs(n);
+    renderBlobs(vis);
   }
 
   // random stable blobs resting on the liquid surface
-  function renderBlobs(n) {
+  function renderBlobs(vis) {
     let html = '';
-    const show = Math.min(n, 14);
+    const show = Math.min(vis.length, 14);
     for (let i = 0; i < show; i++) {
-      const idea = ideas[i];
+      const idea = vis[i];
       const x = 145 + ((i * 37 + 13) % 110);
-      const y = levelY(n) + 8 + (i % 3) * 14;
+      const y = levelY(vis.length) + 8 + (i % 3) * 14;
       const r = 5 + (i % 3) * 2;
-      const color = idea ? idea.color : '#f0b429';
-      html += `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" opacity="0.85"/>`;
+      html += `<circle cx="${x}" cy="${y}" r="${r}" fill="${idea.color}" opacity="0.85"/>`;
     }
-    blobLayer.innerHTML = show > 14 ? html + `<text x="200" y="${levelY(n) + 60}" text-anchor="middle" fill="rgba(232,236,248,0.5)" font-size="11">+${n - 14} more…</text>` : html;
+    blobLayer.innerHTML = vis.length > 14
+      ? html + `<text x="200" y="${levelY(vis.length) + 60}" text-anchor="middle" fill="rgba(232,236,248,0.5)" font-size="11">+${vis.length - 14} more…</text>`
+      : html;
   }
 
   // ---------- drop animation ----------
   function animateDrop(color) {
     const rect = stage.getBoundingClientRect();
+    const targetTop = Math.min(rect.top + rect.height * 0.55, (window.visualViewport || {}).height - 6);
     const blob = document.createElement('div');
     blob.className = 'floating-blob';
     blob.style.left = (rect.left + rect.width / 2 - 40) + 'px';
@@ -496,17 +1041,20 @@
     document.body.appendChild(blob);
     requestAnimationFrame(() => {
       blob.style.transition = 'top 0.55s cubic-bezier(0.55,0,1,0.45), transform 0.55s, opacity 0.3s 0.45s';
-      blob.style.top = (rect.top + rect.height * 0.55) + 'px';
+      blob.style.top = targetTop + 'px';
       blob.style.transform = 'scale(0.35)';
       blob.style.opacity = '0';
     });
     setTimeout(() => blob.remove(), 650);
-    // slosh
+
+    // slosh: keep the elliptic surface ripple proportional to the real stage height
+    const sloshFrom = Math.max(8, Math.round(rect.height * 0.05));
+    const sloshTo = Math.max(5, Math.round(rect.height * 0.03));
     surface.style.transition = 'none';
-    surface.setAttribute('ry', '16');
+    surface.setAttribute('ry', String(sloshFrom));
     requestAnimationFrame(() => {
       surface.style.transition = 'ry 0.6s ease';
-      surface.setAttribute('ry', '10');
+      surface.setAttribute('ry', String(sloshTo));
     });
   }
 
@@ -527,22 +1075,29 @@
       text,
       color: PALETTE[Math.floor(Math.random() * PALETTE.length)],
       created: Date.now(),
-      lastViewed: Date.now()
+      lastViewed: Date.now(),
+      buckets: [...pendingBuckets]
     };
     ideas.unshift(idea);
     save(ideas);
     input.value = '';
-    renderBucket();
+    refreshBuckets();        // bucket counts, glass level and list all moved
     animateDrop(idea.color);
-    if (drawer.classList.contains('open')) renderList();
+    if (pendingBuckets.length) showToast(`💧 Filed into ${pendingBuckets.join(' + ')}`);
+    // under a filter the new idea may not show up at all — say so
+    else if (activeBucket && !inBucket(idea, activeBucket)) showToast(`💧 Dropped — not filed under “${activeBucket}”`);
   }
 
   function dip() {
-    if (ideas.length === 0) {
-      showToast('🪣 The bucket is empty — drop an idea in first');
+    // dip from what you are looking at: the active bucket / search results
+    const pool = visibleIdeas();
+    if (pool.length === 0) {
+      showToast(activeBucket
+        ? `🪣 “${activeBucket}” is empty — drop an idea in first`
+        : '🪣 The bucket is empty — drop an idea in first');
       return;
     }
-    const idea = ideas[Math.floor(Math.random() * ideas.length)];
+    const idea = pool[Math.floor(Math.random() * pool.length)];
     idea.lastViewed = Date.now();
     save(ideas);
 
@@ -551,9 +1106,16 @@
     const blob = document.createElement('div');
     blob.className = 'floating-blob';
     const size = 150;
+    const vv = window.visualViewport || { width: window.innerWidth, height: window.innerHeight };
+    const targetTop = (() => {
+      const center = rect.top + rect.height * 0.55;
+      const topLimit = size + 6;
+      const bottomLimit = vv.height - size - 6;
+      return Math.max(topLimit, Math.min(center, bottomLimit));
+    })();
     blob.style.width = blob.style.height = size + 'px';
     blob.style.left = (rect.left + rect.width / 2 - size / 2) + 'px';
-    blob.style.top = (rect.top + rect.height * 0.55) + 'px';
+    blob.style.top = targetTop + 'px';
     blob.style.background = `radial-gradient(circle at 35% 30%, ${idea.color}, ${shade(idea.color, -40)})`;
     blob.style.borderRadius = '50%';
     blob.style.padding = '1rem';
@@ -562,8 +1124,9 @@
     blob.textContent = idea.text.length > 90 ? idea.text.slice(0, 87) + '…' : idea.text;
     document.body.appendChild(blob);
     requestAnimationFrame(() => {
+      const fadeTop = Math.max(6, Math.min(rect.top - 40, (window.visualViewport || {}).height - size - 6));
       blob.style.transition = 'top 0.9s ease-out, opacity 0.9s, transform 0.9s';
-      blob.style.top = (rect.top - 40) + 'px';
+      blob.style.top = fadeTop + 'px';
       blob.style.opacity = '0.95';
       blob.style.transform = 'scale(1.05)';
     });
@@ -579,36 +1142,64 @@
 
   // ---------- drawer ----------
   function openDrawer() {
+    document.body.classList.add('app--modal-open');
     drawer.classList.add('open');
     scrim.classList.add('open');
     drawer.setAttribute('aria-hidden', 'false');
+    renderBucketBar();
     renderList();
     setTimeout(() => search.focus(), 350);
   }
   function closeDrawer() {
+    document.body.classList.remove('app--modal-open');
     drawer.classList.remove('open');
     scrim.classList.remove('open');
     drawer.setAttribute('aria-hidden', 'true');
     search.value = '';
+    renderList();            // the query is gone: glass + list go back to the bucket
+    renderBucket();
+    input.focus();
+  }
+
+  function cardBucketChips(idea) {
+    const bs = ideaBuckets(idea);
+    if (bs.length === 0) return '';
+    const extra = bs.length > CARD_CHIPS
+      ? `<span class="chip chip-static">+${bs.length - CARD_CHIPS}</span>`
+      : '';
+    return `<div class="bucket-chips">${bs.slice(0, CARD_CHIPS).map(b => bucketChip(b)).join('')}${extra}</div>`;
   }
 
   function renderList() {
     const q = search.value.trim().toLowerCase();
-    const filtered = ideas.filter(i => !q || i.text.toLowerCase().includes(q));
+    const filtered = visibleIdeas();
     if (filtered.length === 0) {
-      list.innerHTML = `<div class="empty-list">${q ? 'Nothing matches “' + escapeHtml(q) + '”' : 'The bucket is empty.<br>Drop your first idea above ✦'}</div>`;
+      let msg;
+      if (activeBucket) {
+        msg = `Nothing in “${escapeHtml(activeBucket)}”` + (q
+          ? ` matches “${escapeHtml(q)}”`
+          : ' yet.<br>Open an idea and tap ✏ to file it here ✦');
+      } else {
+        msg = q ? 'Nothing matches “' + escapeHtml(q) + '”' : 'The bucket is empty.<br>Drop your first idea above ✦';
+      }
+      list.innerHTML = `<div class="empty-list">${msg}</div>`;
       return;
     }
     list.innerHTML = filtered.map(i => `
       <div class="idea-card" data-id="${i.id}">
-        <p>${escapeHtml(i.text)}</p>
-        <div class="idea-meta">
-          <span class="dot" style="background:${i.color}"></span>
-          <span>${new Date(i.created).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-          <span class="idea-actions">
-            <button class="icon-btn copy-btn" title="Copy">⧉</button>
-            <button class="icon-btn danger del-btn" title="Delete">✕</button>
-          </span>
+        <div class="idea-card-head" role="button" tabindex="0" aria-label="Open idea" data-open>
+          <p>${escapeHtml(truncate(i.text, 140))}</p>
+          <div class="idea-meta">
+            <span class="dot" style="background:${i.color}"></span>
+            <span>${new Date(i.created).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}${i.edited ? ' · edited' : ''}</span>
+            <span class="idea-actions">
+              <button class="icon-btn edit-btn" title="Edit idea" aria-label="Edit idea">✏</button>
+              <button class="icon-btn copy-btn" title="Copy" aria-label="Copy idea">⧉</button>
+              <button class="icon-btn view-btn" title="Open idea page" aria-label="Open idea page">↗</button>
+              <button class="icon-btn danger del-btn" title="Delete" aria-label="Delete idea">✕</button>
+            </span>
+          </div>
+          ${cardBucketChips(i)}
         </div>
       </div>
     `).join('');
@@ -618,6 +1209,10 @@
     return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  function truncate(s, n) {
+    return s.length > n ? s.slice(0, n - 1) + '…' : s;
+  }
+
   list.addEventListener('click', (e) => {
     const card = e.target.closest('.idea-card');
     if (!card) return;
@@ -625,37 +1220,424 @@
     if (e.target.closest('.del-btn')) {
       ideas = ideas.filter(i => i.id !== id);
       save(ideas);
-      renderBucket();
-      renderList();
+      refreshBuckets();
       showToast('🗑 Idea removed');
+    } else if (e.target.closest('.edit-btn')) {
+      openIdeaPage(id, true);
     } else if (e.target.closest('.copy-btn')) {
       const idea = ideas.find(i => i.id === id);
       if (idea) {
-        navigator.clipboard?.writeText(idea.text).then(
-          () => showToast('⧉ Copied to clipboard'),
-          () => showToast('⚠️ Could not copy')
-        );
+        copyText(idea.text).then((ok) => showToast(ok ? '⧉ Copied to clipboard' : '⚠️ Could not copy'));
       }
+    } else if (e.target.closest('.view-btn') || e.target.closest('[data-open]')) {
+      openIdeaPage(id);
     }
   });
 
+  // Keyboard access for the card body (it is a focusable div, not a nested button).
+  list.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const head = e.target.closest('.idea-card-head');
+    if (!head || e.target.closest('button')) return;
+    e.preventDefault();
+    const card = head.closest('.idea-card');
+    if (card) openIdeaPage(card.dataset.id);
+  });
+
+  function openIdeaPage(id, startInEdit) {
+    const idea = ideas.find(i => i.id === id);
+    if (!idea) {
+      showToast('⚠️ Idea not found');
+      return;
+    }
+    // Never stack two pages (e.g. a deep link arriving while one is already open).
+    document.querySelectorAll('.idea-page').forEach((el) => el.remove());
+    const opts = { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+    const created = new Date(idea.created).toLocaleString(undefined, opts);
+    const days = Math.floor((Date.now() - idea.created) / 86400000);
+    const ageLine = days === 0 ? 'Created today' : days === 1 ? 'Created yesterday' : `Created ${days} days ago`;
+
+    document.body.classList.add('app--modal-open');
+    const overlay = document.createElement('div');
+    overlay.className = 'idea-page';
+    overlay.innerHTML = `
+      <div class="idea-page-scrim" data-close></div>
+      <article class="idea-page-card" aria-label="Idea detail"></article>
+    `;
+    document.body.appendChild(overlay);
+    const card = overlay.querySelector('.idea-page-card');
+
+    let editing = false;
+    let editArea = null;
+    let editTimer = null;
+    let draftBuckets = [];
+
+    function viewHtml() {
+      return `
+        <div class="idea-page-head">
+          <span class="idea-page-dot" style="background:${escapeHtml(idea.color)}"></span>
+          <span class="idea-page-tag">idea</span>
+          <button class="idea-page-close" data-close aria-label="Close">✕</button>
+        </div>
+        <h2 class="idea-page-title">${escapeHtml(idea.text)}</h2>
+        <div class="idea-page-buckets">${
+          ideaBuckets(idea).length
+            ? ideaBuckets(idea).map(b => bucketChip(b)).join('')
+            : '<span class="idea-page-nobucket">In no bucket yet — tap ✏ Edit to file it</span>'
+        }</div>
+        <div class="idea-page-meta">
+          <div class="idea-page-meta-cell">
+            <span class="idea-page-meta-label">Created</span>
+            <span class="idea-page-meta-val">${created}</span>
+          </div>
+          <div class="idea-page-meta-cell">
+            <span class="idea-page-meta-label">${ageLine}</span>
+            <span class="idea-page-meta-val">${idea.edited ? 'Edited ' + new Date(idea.edited).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</span>
+          </div>
+          <div class="idea-page-meta-cell idea-page-meta-cell--right">
+            <span class="idea-page-meta-label">ID</span>
+            <span class="idea-page-meta-val idea-page-id">${escapeHtml(idea.id)}</span>
+          </div>
+        </div>
+        <div class="idea-page-actions">
+          <button class="idea-page-btn idea-page-edit-btn" data-edit>✏ Edit</button>
+          <button class="idea-page-btn idea-page-copy" data-copy>⧉ Copy</button>
+          <button class="idea-page-btn idea-page-share" data-share>↗ Share</button>
+          <button class="idea-page-btn idea-page-del danger" data-delete>✕ Delete</button>
+        </div>
+      `;
+    }
+
+    function editHtml() {
+      return `
+        <div class="idea-page-head">
+          <span class="idea-page-dot" style="background:${escapeHtml(idea.color)}"></span>
+          <span class="idea-page-tag">editing</span>
+          <button class="idea-page-close" data-close aria-label="Close">✕</button>
+        </div>
+        <label class="idea-page-edit-label" for="ideaEditArea">Idea</label>
+        <textarea id="ideaEditArea" class="idea-page-edit" rows="4" maxlength="2000" autocomplete="off" autocapitalize="sentences" spellcheck="true" placeholder="Write your idea…">${escapeHtml(idea.text)}</textarea>
+        <div class="idea-page-count"><span data-edit-count>${idea.text.length}</span> / 2000</div>
+        <p class="edit-buckets-head">Buckets — this idea can be in several</p>
+        <div class="edit-buckets" data-edit-buckets></div>
+        <div class="idea-page-actions">
+          <button class="idea-page-btn idea-page-save" data-save>✓ Save</button>
+          <button class="idea-page-btn" data-cancel>Cancel</button>
+        </div>
+      `;
+    }
+
+    // Keep the caret above the soft keyboard: the card is a fixed overlay, so shift
+    // it up by the overlap between the focused textarea and the visual viewport.
+    const vv = window.visualViewport;
+    function alignForKeyboard() {
+      if (!editing || !editArea || !overlay.isConnected) return;
+      if (!vv) return;
+      const visibleBottom = vv.height + vv.offsetTop;
+      const rect = editArea.getBoundingClientRect();
+      let shift = Math.min(0, visibleBottom - 12 - rect.bottom);
+      const above = card.getBoundingClientRect().top;
+      if (above > 8) shift = Math.max(shift, -(above - 8));
+      card.style.setProperty('--kb-shift', Math.round(shift) + 'px');
+    }
+    _activeOverlayFit = alignForKeyboard;
+    function releaseKeyboardFit() {
+      if (_activeOverlayFit === alignForKeyboard) _activeOverlayFit = null;
+      card.style.removeProperty('--kb-shift');
+    }
+    const close = () => {
+      if (editTimer) clearTimeout(editTimer);
+      if (editArea) editArea.blur();            // dismiss the soft keyboard with the editor
+      else if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      overlay.classList.remove('open');
+      setTimeout(() => {
+        releaseKeyboardFit();
+        overlay.remove();
+        document.body.classList.remove('app--modal-open');
+      }, 280);
+    };
+
+    function closeWithGuard() {
+      if (editing && editArea && editArea.value.trim() && editArea.value !== idea.text) {
+        if (!window.confirm('Discard your unsaved edit?')) return;
+      }
+      close();
+    }
+
+    function focusEdit() {
+      if (!editArea) return;
+      const go = () => {
+        if (!document.contains(editArea)) return;
+        editArea.focus();
+        editArea.setSelectionRange(editArea.value.length, editArea.value.length);
+        alignForKeyboard();
+      };
+      go();
+      if (editTimer) clearTimeout(editTimer);
+      editTimer = setTimeout(go, 320);   // re-assert once the soft keyboard has settled
+    }
+
+    // chips for the buckets this idea is filed into; toggling them is part of the
+    // draft, so Cancel really does discard bucket changes too
+    function editBucketChips() {
+      const box = card.querySelector('[data-edit-buckets]');
+      if (!box) return;
+      const names = bucketIndex().map(b => b.name);
+      for (const p of draftBuckets) if (!names.includes(p)) names.push(p);
+      box.innerHTML = names.map(name => {
+        const on = draftBuckets.includes(name);
+        return bucketChip(name, {
+          button: true,
+          active: on,
+          attr: 'data-toggle-bucket',
+          title: on ? `Remove from “${name}”` : `File into “${name}”`
+        });
+      }).join('') +
+        '<button type="button" class="chip ghost" data-new-bucket-editor>＋ new bucket</button>';
+    }
+
+    function exitEdit() {
+      if (editTimer) clearTimeout(editTimer);
+      if (editArea) editArea.blur();
+      editing = false;
+      editArea = null;
+      draftBuckets = [];
+      card.style.removeProperty('--kb-shift');
+      paint();
+    }
+
+    function enterEdit() {
+      draftBuckets = [...ideaBuckets(idea)];
+      editing = true;
+      paint();
+    }
+
+    function commitEdit() {
+      const next = (editArea ? editArea.value : '').trim();
+      if (!next) {
+        showToast('⚠️ An idea can\u2019t be empty');
+        focusEdit();
+        return;
+      }
+      const before = ideaBuckets(idea);
+      const kept = [...draftBuckets];
+      const refiled = kept.length !== before.length || kept.some(b => !before.includes(b));
+      const textChanged = next !== idea.text;
+      if (!textChanged && !refiled) {
+        exitEdit();
+        return;
+      }
+      idea.text = next;
+      idea.buckets = kept;
+      idea.edited = Date.now();
+      idea.lastViewed = Date.now();
+      save(ideas);
+      refreshBuckets();
+      if (editTimer) clearTimeout(editTimer);
+      if (editArea) editArea.blur();
+      editing = false;
+      editArea = null;
+      card.style.removeProperty('--kb-shift');
+      draftBuckets = [];
+      paint();
+      showToast(textChanged ? '✏️ Idea updated' : '🗂 Buckets updated');
+    }
+
+    function paint() {
+      card.innerHTML = editing ? editHtml() : viewHtml();
+      if (editing) {
+        editArea = card.querySelector('.idea-page-edit');
+        const counter = card.querySelector('[data-edit-count]');
+        const saveBtn = card.querySelector('[data-save]');
+        const sync = () => {
+          if (counter) counter.textContent = String(editArea.value.length);
+          saveBtn.disabled = !editArea.value.trim();
+        };
+        editArea.addEventListener('input', sync);
+        editArea.addEventListener('blur', () => { card.style.removeProperty('--kb-shift'); });
+        saveBtn.addEventListener('click', commitEdit);
+        card.querySelector('[data-cancel]').addEventListener('click', exitEdit);
+        sync();
+        editBucketChips();
+        focusEdit();
+      } else {
+        editArea = null;
+        card.querySelector('[data-edit]').addEventListener('click', enterEdit);
+        card.querySelector('[data-copy]').addEventListener('click', () => {
+          copyText(idea.text).then((ok) => showToast(ok ? '⧉ Copied to clipboard' : '⚠️ Could not copy'));
+        });
+        card.querySelector('[data-share]').addEventListener('click', async () => {
+          const url = `https://ideabucket.app/idea/${idea.id}`;
+          const link = `Check out my idea in The Idea Bucket: ${url}`;
+          const result = await shareText('An idea from The Idea Bucket', link);
+          if (result === 'copied') showToast('↗ Share link copied');
+          else if (result === 'failed') showToast('⚠️ Share not available');
+        });
+        card.querySelector('[data-delete]').addEventListener('click', () => {
+          ideas = ideas.filter(i => i.id !== id);
+          save(ideas);
+          refreshBuckets();
+          close();
+          showToast('🗑 Idea removed');
+        });
+      }
+    }
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target.hasAttribute('data-close') || e.target.classList.contains('idea-page-scrim')) closeWithGuard();
+    });
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();   // don't let Escape close the drawer underneath too
+        closeWithGuard();
+      } else if (editing && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        commitEdit();
+      }
+    });
+
+    // bucket toggles live inside the re-rendered card, so listen on the card itself
+    card.addEventListener('click', (e) => {
+      const toggle = e.target.closest('[data-toggle-bucket]');
+      if (toggle) {
+        const name = toggle.getAttribute('data-toggle-bucket');
+        draftBuckets = draftBuckets.includes(name)
+          ? draftBuckets.filter(b => b !== name)
+          : [...draftBuckets, name];
+        editBucketChips();
+        return;
+      }
+      if (e.target.closest('[data-new-bucket-editor]')) {
+        const name = askNewBucketName();
+        if (name && !draftBuckets.includes(name)) {
+          draftBuckets = [...draftBuckets, name];
+          editBucketChips();
+        }
+      }
+    });
+
+    paint();
+    if (startInEdit) enterEdit();
+    requestAnimationFrame(() => overlay.classList.add('open'));
+  }
+
   // ---------- exports ----------
-  function download(filename, content, type) {
+  function isCancel(err) {
+    const msg = String((err && (err.message || err.errorMessage)) || err || '');
+    return /cancel/i.test(msg);
+  }
+
+  async function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try { await navigator.clipboard.writeText(text); return true; } catch (_) { /* fall through */ }
+    }
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch (_) { return false; }
+  }
+
+  async function shareText(title, text) {
+    if (CapShare) {
+      try { await CapShare.share({ title, text, dialogTitle: title }); return 'shared'; }
+      catch (err) { if (isCancel(err)) return 'cancelled'; }
+    }
+    if (typeof navigator.share === 'function') {
+      try { await navigator.share({ title, text }); return 'shared'; }
+      catch (err) { if (isCancel(err)) return 'cancelled'; }
+    }
+    return (await copyText(text)) ? 'copied' : 'failed';
+  }
+
+  function browserDownload(filename, content, mime) {
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([content], { type }));
+    const url = URL.createObjectURL(new Blob([content], { type: mime }));
+    a.href = url;
     a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
-    showToast('⬇ Exported ' + filename);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  async function exportFile(filename, content, mime, title) {
+    // Android: write the file into the app cache, then hand it to the system share
+    // sheet so it can be saved to Files/Drive/Documents or sent to another app.
+    if (CapFilesystem) {
+      let uri = null;
+      try {
+        const res = await CapFilesystem.writeFile({
+          path: filename,
+          data: content,
+          directory: 'CACHE',
+          encoding: 'utf8',
+          recursive: true
+        });
+        uri = res && res.uri;
+      } catch (err) {
+        console.warn('Filesystem.writeFile failed:', err);
+      }
+      if (uri) {
+        if (CapShare) {
+          try {
+            await CapShare.share({ title, dialogTitle: title, files: [uri] });
+          } catch (err) {
+            if (isCancel(err)) return;              // user dismissed the share sheet
+            showToast('⚠️ Saved, but could not open the share sheet');
+            return;
+          }
+        }
+        showToast('⬇ Exported ' + filename);
+        return;
+      }
+      // Writing failed — fall through to the browser download path.
+    }
+    try {
+      browserDownload(filename, content, mime);
+      showToast('⬇ Exported ' + filename);
+    } catch (err) {
+      console.warn('Download failed:', err);
+      showToast('⚠️ Could not export');
+    }
   }
 
   $('exportJsonBtn').addEventListener('click', () => {
-    download('idea-bucket.json', JSON.stringify(ideas, null, 2), 'application/json');
+    exportFile('idea-bucket.json', JSON.stringify(ideas, null, 2), 'application/json', 'Export ideas (JSON)');
   });
   $('exportMdBtn').addEventListener('click', () => {
-    const lines = ['# The Idea Bucket', '', ...ideas.map(i =>
-      `- **${new Date(i.created).toLocaleDateString()}** — ${i.text}`)];
-    download('idea-bucket.md', lines.join('\n'), 'text/markdown');
+    const buckets = bucketIndex();
+    const entry = (i, suffix) => `- **${new Date(i.created).toLocaleDateString()}** — ${i.text}${suffix || ''}`;
+    const lines = ['# The Idea Bucket', ''];
+    if (buckets.length === 0) {
+      lines.push(`## Ideas (${ideas.length})`, '', ...ideas.map(i => entry(i)));
+    } else {
+      // an idea in several buckets is listed under each of them, so the file reads
+      // as one section per bucket without losing the fact that they share an idea
+      for (const b of buckets) {
+        lines.push(`## ${b.name} (${b.count})`, '');
+        for (const i of ideas.filter(x => inBucket(x, b.name))) {
+          const others = ideaBuckets(i).filter(x => x !== b.name);
+          lines.push(entry(i, others.length ? `  _(also in ${others.join(', ')})_` : ''));
+        }
+        lines.push('');
+      }
+      const unfiled = ideas.filter(i => ideaBuckets(i).length === 0);
+      if (unfiled.length) {
+        lines.push(`## Unfiled (${unfiled.length})`, '', ...unfiled.map(i => entry(i)), '');
+      }
+    }
+    exportFile('idea-bucket.md', lines.join('\n'), 'text/markdown', 'Export ideas (Markdown)');
   });
 
   // ---------- events ----------
@@ -665,8 +1647,146 @@
   $('openBtn').addEventListener('click', openDrawer);
   $('closeBtn').addEventListener('click', closeDrawer);
   scrim.addEventListener('click', closeDrawer);
-  search.addEventListener('input', renderList);
+  // searching narrows the glass and the counter too, so what you read on screen
+  // always matches the list
+  search.addEventListener('input', () => { renderList(); renderBucket(); });
+  // Android: the soft keyboard's Enter should close the keyboard instead of leaving
+  // it covering the results (the typed query stays applied).
+  search.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); search.blur(); }
+  });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+
+  // ---------- bucket interactions ----------
+  let chipPressTimer = null;
+  let chipLongPressed = false;
+  function endChipPress() {
+    if (chipPressTimer) { clearTimeout(chipPressTimer); chipPressTimer = null; }
+  }
+  // Deleting a bucket only unfiles its ideas, so the hold is guarded against the
+  // contextmenu event that Android fires for the same gesture.
+  function startBucketDelete(name) {
+    if (chipLongPressed) return;
+    chipLongPressed = true;
+    deleteBucketFlow(name);
+  }
+  bucketBar.addEventListener('pointerdown', (e) => {
+    const chip = e.target.closest('[data-bucket]');
+    if (!chip) return;
+    chipLongPressed = false;
+    endChipPress();
+    chipPressTimer = setTimeout(() => {
+      chipPressTimer = null;
+      startBucketDelete(chip.dataset.bucket);
+    }, 550);
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((type) =>
+    bucketBar.addEventListener(type, endChipPress));
+  bucketBar.addEventListener('click', (e) => {
+    if (chipLongPressed) { chipLongPressed = false; return; }   // the hold already handled it
+    if (e.target.closest('[data-all]')) { activeBucket = null; refreshBuckets(); return; }
+    const chip = e.target.closest('[data-bucket]');
+    if (!chip) return;
+    const name = chip.dataset.bucket;
+    activeBucket = activeBucket === name ? null : name;
+    refreshBuckets();
+  });
+  bucketBar.addEventListener('contextmenu', (e) => {
+    const chip = e.target.closest('[data-bucket]');
+    if (!chip) return;
+    e.preventDefault();
+    endChipPress();
+    startBucketDelete(chip.dataset.bucket);
+  });
+
+  // "file into …": which bucket(s) the next dropped idea joins
+  composerBuckets.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-bucket]');
+    if (chip) { togglePendingBucket(chip.dataset.bucket); return; }
+    if (e.target.closest('[data-new-bucket]')) {
+      const name = askNewBucketName();
+      if (name && !pendingBuckets.includes(name)) togglePendingBucket(name);
+    }
+  });
+
+  // ---------- keep focused input visible when the soft keyboard opens ----------
+  let _scrollTimer = null;
+  function visualViewportScrollTarget() {
+    const active = document.activeElement;
+    if (!active || !active.tagName) return null;
+    if (!/^(INPUT|TEXTAREA|BUTTON)$/i.test(active.tagName)) return null;
+    if (active.disabled || active.type === 'hidden') return null;
+    const box = active.getBoundingClientRect();
+    if (box.width === 0 && box.height === 0) return null;   // hidden / not laid out
+    return active;
+  }
+  function scrollActiveIntoVisualViewport() {
+    const target = visualViewportScrollTarget();
+    if (!target) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const rect = target.getBoundingClientRect();
+    const bottomLimit = vv.height - 6;
+    const topLimit = 0;
+    let dy = 0;
+    if (rect.bottom > bottomLimit) dy += rect.bottom - bottomLimit;
+    if (rect.top < topLimit) dy -= topLimit - rect.top;
+    if (dy !== 0) {
+      window.scrollBy({ top: dy, left: 0, behavior: 'smooth' });
+    }
+  }
+  function onVisualViewportChange() {
+    if (_scrollTimer) clearTimeout(_scrollTimer);
+    _scrollTimer = setTimeout(scrollActiveIntoVisualViewport, 40);
+  }
+  function overlayKeyboardFit() {
+    if (_activeOverlayFit) _activeOverlayFit();
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', onVisualViewportChange);
+    window.visualViewport.addEventListener('resize', overlayKeyboardFit);
+    window.visualViewport.addEventListener('scroll', overlayKeyboardFit);
+  }
+  input.addEventListener('focus', scrollActiveIntoVisualViewport);
+  search.addEventListener('focus', scrollActiveIntoVisualViewport);
+
+  let _keyboardRestoreScrollY = null;
+  let _keyboardRestoreTimer = null;
+
+  function rememberScrollForKeyboardRestore() {
+    _keyboardRestoreScrollY = window.scrollY;
+    if (_keyboardRestoreTimer) clearTimeout(_keyboardRestoreTimer);
+    _keyboardRestoreTimer = setTimeout(() => { _keyboardRestoreScrollY = null; }, 4000);
+  }
+
+  function tryRestoreScrollAfterKeyboard() {
+    if (_keyboardRestoreScrollY == null) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const inputBottom = Math.max(
+      input.getBoundingClientRect().bottom,
+      search.getBoundingClientRect().bottom
+    );
+    const clearRestore = () => { _keyboardRestoreScrollY = null; };
+    if (inputBottom < vv.height - 2) {
+      window.scrollTo({ top: _keyboardRestoreScrollY, behavior: 'smooth' });
+      clearRestore();
+      return;
+    }
+    const belowKeyboard = _keyboardRestoreScrollY + vv.height - 6;
+    if (belowKeyboard < _keyboardRestoreScrollY + 40) {
+      clearRestore();
+      return;
+    }
+    window.scrollTo({ top: belowKeyboard, behavior: 'smooth' });
+    clearRestore();
+  }
+
+  input.addEventListener('focus', rememberScrollForKeyboardRestore);
+  search.addEventListener('focus', rememberScrollForKeyboardRestore);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', tryRestoreScrollAfterKeyboard);
+  }
 
   // gentle idle bob for the handle
   let t = 0;
@@ -677,7 +1797,34 @@
   }, 50);
 
   // ---------- init ----------
+  renderBucketBar();
+  renderComposerBuckets();
   renderBucket();
+
+  // ---------- deep-link route (idea page visits survive reloads) ----------
+  function applyRoute() {
+    const match = location.pathname.match(/^\/idea\/([a-zA-Z0-9\-]+)$/);
+    if (!match) return;
+    const id = decodeURIComponent(match[1]);
+    if (!ideas.find(i => i.id === id)) {
+      showToast('⚠️ That idea isn\'t here anymore');
+      history.replaceState(null, '', '/');
+      renderList();
+      openDrawer();
+      return;
+    }
+    openIdeaPage(id);
+  }
+  window.addEventListener('popstate', applyRoute);
+  applyRoute();
+
+  // ---------- keyboard shortcut to focus input ----------
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement !== input && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      input.focus();
+    }
+  });
 })();
 </script>
 </body>
