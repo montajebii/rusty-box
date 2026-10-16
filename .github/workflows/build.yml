@@ -1,0 +1,123 @@
+# Build — every commit, on every branch.
+#
+# Two jobs, cheapest first:
+#
+#   web   The app is one HTML file, so a stray syntax error in its inline <script>
+#         white-screens the app on launch and nothing else in CI would notice. This job
+#         installs the locked dependencies and parses that script.
+#   apk   cap sync → assembleDebug → the same 8-gate check-apk.sh a release must pass,
+#         then uploads the APK as a build artifact you can download from the run page and
+#         sideload straight onto a phone.
+#
+# Tag pushes (v*) are built by release.yml, which also publishes the APK.
+name: Build
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+# Read-only: this workflow never writes to the repository.
+permissions:
+  contents: read
+
+# A new push to the same branch makes the previous run pointless.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web app checks
+    # Pinned, not ubuntu-latest: that label moves to Ubuntu 26.04 in November 2026.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Inline JavaScript parses
+        run: |
+          set -euo pipefail
+          node -e '
+            const fs = require("fs");
+            const html = fs.readFileSync("index.html", "utf8");
+            const blocks = [...html.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/gi)];
+            if (blocks.length === 0) {
+              console.error("no inline <script> found in index.html");
+              process.exit(1);
+            }
+            fs.writeFileSync(process.env.RUNNER_TEMP + "/inline.js", blocks.map(b => b[1]).join("\n;\n"));
+            console.log("inline script: " + blocks.length + " block(s)");
+          '
+          node --check "$RUNNER_TEMP/inline.js"
+          echo "✔ inline JavaScript parses"
+
+  apk:
+    name: APK + pre-release checks
+    needs: web
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Select JDK 21
+        run: |
+          set -euo pipefail
+          # The image carries JDK 8/11/17/21/25 and defaults to 17; AGP 8.13 needs 17+.
+          # android/gradle.properties also pins the dev machine's JDK 21, so build on 21 here
+          # for the same toolchain both places.
+          JDK="${JAVA_HOME_21_X64:-/usr/lib/jvm/temurin-21-jdk-amd64}"
+          test -x "$JDK/bin/javac" || { echo "::error::JDK 21 not found at $JDK"; exit 1; }
+          echo "JAVA_HOME=$JDK" >> "$GITHUB_ENV"
+          "$JDK/bin/java" -version
+
+      # Fail in seconds, with the script's own message, if the SDK layout here is not what
+      # build-apk.sh / check-apk.sh expect — instead of five minutes into the build.
+      - name: Resolve the toolchain
+        run: |
+          set -euo pipefail
+          . ./build-env.sh || exit 1
+          echo "JDK:         $JDK"
+          echo "SDK:         $SDK"
+          echo "build-tools: $BUILD_TOOLS"
+
+      - name: Cache Gradle
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      # cap sync + assembleDebug + refresh idea-bucket-debug.apk
+      - name: Build the APK
+        run: bash build-apk.sh
+
+      # The same gates a release has to pass — see the header of check-apk.sh.
+      - name: Pre-release checks (8 gates)
+        run: bash check-apk.sh
+
+      - name: Upload the APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: idea-bucket-debug
+          path: idea-bucket-debug.apk
+          if-no-files-found: error
+          retention-days: 30

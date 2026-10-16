@@ -1,0 +1,230 @@
+# Release — cut an installable APK for a tag.
+#
+#   git tag v1.1.0 && git push origin v1.1.0
+#
+# or run this workflow manually with the name of an existing tag. It builds the release
+# APK, runs the same 8-gate pre-release check as CI, and publishes a GitHub Release with
+# the APK and its SHA-256.
+#
+# Signing — add these repository secrets (Settings → Secrets and variables → Actions) and
+# the APK is signed with your own key, so it upgrades the previous install cleanly:
+#
+#   KEYSTORE_BASE64     base64 -w0 ~/idea-bucket.keystore
+#   KEYSTORE_PASSWORD   the keystore password
+#   KEY_ALIAS           the key alias (e.g. ideabucket)
+#   KEY_PASSWORD        the key password
+#
+# Without them the release falls back to the debug APK, self-signed with Android's standard
+# debug key. That installs fine, but it has a *different* signature, so it cannot upgrade an
+# install that was signed with a real key — the release notes say so, and the workflow
+# warns in its summary.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to release, e.g. v1.1.0'
+        required: true
+        type: string
+
+# gh release create / upload need to write releases.
+permissions:
+  contents: write
+
+# Never cancel: an interrupted run could leave a half-published release.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish
+    # Pinned, not ubuntu-latest: that label moves to Ubuntu 26.04 in November 2026.
+    runs-on: ubuntu-24.04
+    env:
+      # Empty unless a signing key is configured — the build steps branch on this.
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0        # the release notes are generated from the commit log
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Select JDK 21
+        run: |
+          set -euo pipefail
+          # The image carries JDK 8/11/17/21/25 and defaults to 17; AGP 8.13 needs 17+.
+          JDK="${JAVA_HOME_21_X64:-/usr/lib/jvm/temurin-21-jdk-amd64}"
+          test -x "$JDK/bin/javac" || { echo "::error::JDK 21 not found at $JDK"; exit 1; }
+          echo "JAVA_HOME=$JDK" >> "$GITHUB_ENV"
+          "$JDK/bin/java" -version
+
+      # Fail in seconds, with the script's own message, if the SDK layout here is not what the
+      # build scripts expect — instead of minutes into the build.
+      - name: Resolve the toolchain
+        run: |
+          set -euo pipefail
+          . ./build-env.sh || exit 1
+          echo "JDK:         $JDK"
+          echo "SDK:         $SDK"
+          echo "build-tools: $BUILD_TOOLS"
+
+      - name: Cache Gradle
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Work out the version
+        id: version
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF" in
+            refs/tags/*) TAG="$GITHUB_REF_NAME" ;;      # a tag push: release that tag
+            *)           TAG="${INPUT_TAG:-}" ;;         # manual run: the tag you typed
+          esac
+          [ -n "$TAG" ] || { echo "::error::no tag to release"; exit 1; }
+          VERSION="${TAG#v}"
+          # versionCode must rise with every release or Android refuses to upgrade the app,
+          # so it is the workflow run number rather than anything derived from the tag text.
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Releasing $TAG — versionName $VERSION, versionCode $GITHUB_RUN_NUMBER"
+
+      - name: Build and sign the release APK
+        if: env.KEYSTORE_BASE64 != ''
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.name }}
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          . ./build-env.sh
+          npm run cap:sync
+          ( cd android && ./gradlew "${GRADLE_JDK_ARGS[@]}" assembleRelease --console=plain \
+              -PversionName="$VERSION" -PversionCode="$VERSION_CODE" )
+          # Sign with your own key. zipalign must run before signing, and apksigner reads the
+          # passwords from the environment (env:NAME), so they never reach the command line.
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          mkdir -p dist
+          "$BUILD_TOOLS/zipalign" -f 4 \
+            android/app/build/outputs/apk/release/app-release-unsigned.apk \
+            "$RUNNER_TEMP/aligned.apk"
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks "$RUNNER_TEMP/upload.jks" \
+            --ks-pass env:KEYSTORE_PASSWORD \
+            --ks-key-alias "$KEY_ALIAS" \
+            --key-pass env:KEY_PASSWORD \
+            --out "dist/idea-bucket-${TAG}.apk" \
+            "$RUNNER_TEMP/aligned.apk"
+
+      - name: Build the debug APK (no signing key configured)
+        if: env.KEYSTORE_BASE64 == ''
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.name }}
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          echo "::warning::No signing key configured — releasing the self-signed debug APK. See ANDROID.md for the four secrets that make this a proper release."
+          bash build-apk.sh "-PversionName=$VERSION" "-PversionCode=$VERSION_CODE"
+          mkdir -p dist
+          mv idea-bucket-debug.apk "dist/idea-bucket-${TAG}-debug.apk"
+
+      - name: Locate the built APK
+        id: apk
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(dist/*.apk)
+          if [ "${#files[@]}" -ne 1 ]; then
+            echo "::error::expected exactly one APK in dist/, found ${#files[@]}"
+            exit 1
+          fi
+          echo "path=${files[0]}" >> "$GITHUB_OUTPUT"
+          ls -l dist
+
+      - name: Pre-release checks (8 gates)
+        env:
+          APK: ${{ steps.apk.outputs.path }}
+          # Gate 3 asserts these, so an APK that came out carrying the local 1.0 / version code 1
+          # (the version plumbing silently doing nothing) fails the release instead of shipping.
+          EXPECT_VERSION_NAME: ${{ steps.version.outputs.name }}
+          EXPECT_VERSION_CODE: ${{ github.run_number }}
+        run: bash check-apk.sh "$APK"
+
+      - name: Checksum
+        env:
+          APK: ${{ steps.apk.outputs.path }}
+        run: |
+          set -euo pipefail
+          # Record the bare file name, not dist/…, so that someone who downloads the APK and
+          # this file into one folder can verify it with the command the release notes give.
+          ( cd "$(dirname "$APK")" && sha256sum "$(basename "$APK")" | tee "$(basename "$APK").sha256" )
+
+      - name: Release notes
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          APK: ${{ steps.apk.outputs.path }}
+        run: |
+          set -euo pipefail
+          NAME="$(basename "$APK")"
+          {
+            printf '## Idea Bucket %s\n\n' "$TAG"
+            printf '**Install:** copy `%s` to the phone and tap it (allow "install unknown apps" for your file manager), or `adb install %s`.\n\n' "$NAME" "$NAME"
+            printf 'Verify the download with `sha256sum -c %s.sha256`.\n\n' "$NAME"
+            printf '### Changes\n\n'
+          } > notes.md
+          # Notes are cosmetic — never let a tag that git describe cannot reach fail the release.
+          PREV="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+          RANGE="$TAG"
+          [ -n "$PREV" ] && RANGE="$PREV..$TAG"
+          git log --no-merges --pretty='- %s (%h)' -30 "$RANGE" >> notes.md 2>/dev/null || true
+
+      - name: Say so when the APK is the debug build
+        if: env.KEYSTORE_BASE64 == ''
+        run: |
+          cat >> notes.md <<'EOF'
+
+          > ⚠️ **Debug build.** Because this repository has no signing key configured, this APK is
+          > self-signed with Android's standard debug key. It installs fine, but its signature
+          > differs from a properly signed build, so it cannot upgrade an install signed with your
+          > own key (uninstall that one first). Add the four `KEYSTORE_*` secrets described in
+          > `ANDROID.md` → *Release build* to ship a signed APK.
+          EOF
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          APK: ${{ steps.apk.outputs.path }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # A re-run of an existing release replaces the assets rather than failing.
+            gh release upload "$TAG" "$APK" "$APK.sha256" --clobber
+          else
+            gh release create "$TAG" "$APK" "$APK.sha256" \
+              --title "Idea Bucket $TAG" \
+              --notes-file notes.md \
+              --verify-tag
+          fi
