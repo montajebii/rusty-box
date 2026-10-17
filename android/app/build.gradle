@@ -10,11 +10,11 @@ def buildVersionName = (rootProject.findProperty('versionName') ?: project.findP
 
 android {
     namespace = "com.ideabucket.app"
-    compileSdk = rootProject.ext.compileSdkVersion
+    compileSdk 35
     defaultConfig {
         applicationId "com.ideabucket.app"
         minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        targetSdkVersion 35
         versionCode = buildVersionCode
         versionName = buildVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -57,6 +57,8 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.9.0'
 }
 
 apply from: 'capacitor.build.gradle'

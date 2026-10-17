@@ -1,7 +1,7 @@
 {
   "name": "idea-bucket",
-  "version": "1.0.0",
-  "description": "The Idea Bucket - store your ideas in a bucket",
+  "version": "1.1.0",
+  "description": "By the way (راستی) - catch ideas in Name - Description buckets",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "node -e \"const fs=require('fs');fs.rmSync('www',{recursive:true,force:true});fs.mkdirSync('www');fs.copyFileSync('index.html','www/index.html');console.log('www/ ready')\"",
