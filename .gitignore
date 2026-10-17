@@ -12,3 +12,7 @@ android/capacitor-cordova-android-plugins/
 *.iso
 .freebuff-preview/
 *.log
+
+# Session backup of pre-merge i18n work
+index.i18n-wip.html
+stash-i18n-full.patch
