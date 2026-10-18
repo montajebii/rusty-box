@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>The Idea Bucket</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AA%A3%3C/text%3E%3C/svg%3E">
 <style>
@@ -24,6 +27,11 @@
 
   html, body { height: 100%; }
 
+  html {
+    /* iOS 15+ needs a stable gutter so content doesn't jump when the scrollbar appears */
+    scrollbar-gutter: stable;
+  }
+
   body {
     position: relative;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
@@ -38,6 +46,10 @@
     align-items: center;
     overflow-x: hidden;
     overscroll-behavior: contain;
+    /* full-bleed into the safe-area insets on notched devices */
+    margin: 0;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   /* ---------- Header ---------- */
@@ -50,8 +62,11 @@
   h1 {
     font-family: Georgia, 'Times New Roman', serif;
     font-weight: 700;
-    font-size: 2rem;
+    font-size: clamp(1.5rem, 6vw, 2rem);
     letter-spacing: -0.02em;
+    /* prevent iOS text size adjustment */
+    -webkit-text-size-adjust: none;
+    text-size-adjust: none;
   }
   h1 .tilde { color: var(--gold); font-style: italic; font-family: 'Georgia', 'Times New Roman', serif; }
   .tagline {
@@ -68,8 +83,17 @@
     aspect-ratio: 1 / 0.9;
     max-height: var(--stage-max);
     margin-top: 0.5rem;
+    margin-bottom: 0.25rem;
     user-select: none;
     flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    /* subtle inner shadow for depth */
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+    transition: filter 0.4s ease;
+  }
+  .stage.has-ideas {
+    filter: drop-shadow(0 4px 20px rgba(240, 180, 41, 0.25));
   }
 
   svg { width: 100%; height: 100%; display: block; }
@@ -80,6 +104,11 @@
     display: flex;
     gap: 0.5rem;
     margin-top: 0.25rem;
+  }
+
+  .composer input::selection {
+    background: rgba(240, 180, 41, 0.35);
+    color: var(--ink);
   }
   .composer input {
     flex: 1;
@@ -92,6 +121,7 @@
     font-size: 0.95rem;
     outline: none;
     transition: border-color 0.2s, box-shadow 0.2s;
+    color-scheme: dark;
   }
   .composer input::placeholder { color: var(--ink-faint); }
   .composer input:focus {
@@ -122,12 +152,21 @@
   }
   .counter strong { color: var(--gold); }
 
+  /* subtle pulse on the liquid surface when ideas exist */
+  @keyframes liquidPulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 0.72; }
+  }
+  .stage.has-ideas #surface {
+    animation: liquidPulse 2.6s ease-in-out infinite;
+  }
+
   /* ---------- Bottom bar ---------- */
   .bar {
     position: fixed;
     left: 50%;
     right: 50%;
-    bottom: max(5.2rem, env(safe-area-inset-bottom) + 1rem);
+    bottom: max(5.2rem, calc(env(safe-area-inset-bottom) + 1rem));
     width: min(92vw, 560px);
     transform: translateX(-50%);
     display: flex;
@@ -137,6 +176,8 @@
     flex-wrap: wrap;
     box-sizing: border-box;
     z-index: 30;
+    /* prevent accidental pull-to-refresh on iOS */
+    touch-action: pan-y;
   }
   .bar button {
     background: transparent;
@@ -149,10 +190,17 @@
     letter-spacing: 0.03em;
     cursor: pointer;
     transition: all 0.2s;
+    /* long-press menu on mobile */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
   .bar button:hover {
     border-color: rgba(240, 180, 41, 0.4);
     color: var(--gold);
+  }
+  .bar button:active {
+    transform: scale(0.96);
   }
 
   /* ---------- Drawer ---------- */
@@ -161,10 +209,14 @@
     inset: 0;
     background: rgba(4, 6, 12, 0.6);
     backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s;
     z-index: 40;
+    /* Cover safe area insets too */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    margin: calc(-1 * env(safe-area-inset-top)) calc(-1 * env(safe-area-inset-right)) calc(-1 * env(safe-area-inset-bottom)) calc(-1 * env(safe-area-inset-left));
   }
   .scrim.open { opacity: 1; pointer-events: auto; }
 
@@ -175,12 +227,16 @@
     background: var(--panel);
     border-left: 1px solid var(--line);
     backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     transform: translateX(105%);
     transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
     z-index: 50;
     display: flex;
     flex-direction: column;
     overscroll-behavior: contain;
+    /* account for safe area insets on notched devices */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
   }
   .drawer.open { transform: translateX(0); }
 
@@ -223,6 +279,12 @@
     font-size: 0.9rem;
     outline: none;
     transition: border-color 0.2s;
+    /* dark keyboard-aware input */
+    color-scheme: dark;
+  }
+  .search-wrap input::selection {
+    background: rgba(240, 180, 41, 0.35);
+    color: var(--ink);
   }
   .search-wrap input:focus { border-color: rgba(240, 180, 41, 0.4); }
 
@@ -231,8 +293,21 @@
     overflow-y: auto;
     padding: 0.4rem 1rem 1.5rem;
   }
-  .idea-list::-webkit-scrollbar { width: 6px; }
+  .idea-list {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--ink) 15%, transparent) transparent;
+  }
+  .idea-list::-webkit-scrollbar { width: 5px; }
   .idea-list::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+  .idea-list::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--ink) 20%, transparent); }
+
+  /* macOS: hide the thin native scrollbar overlay that can sit on text */
+  @media (hover: hover) and (pointer: fine) {
+    .idea-list {
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in srgb, var(--ink) 15%, transparent) transparent;
+    }
+  }
 
   .idea-card {
     background: rgba(255, 255, 255, 0.03);
@@ -327,7 +402,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-end;
-    padding: max(1rem, env(safe-area-inset-bottom)) 1rem max(2rem, env(safe-area-inset-bottom) + 1rem);
+    padding: max(1rem, env(safe-area-inset-bottom)) 1rem max(2rem, calc(env(safe-area-inset-bottom) + 1rem));
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.25s;
@@ -361,6 +436,8 @@
     transform: translateY(20px);
     transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
     box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.5);
+    /* keep the page-bar above the bottom safe area */
+    padding-bottom: calc(1.6rem + env(safe-area-inset-bottom));
   }
   .idea-page.open .idea-page-card {
     transform: translateY(0);
@@ -551,7 +628,10 @@
     overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
   }
-  .bucket-bar::-webkit-scrollbar { display: none; }
+  .bucket-bar::-webkit-scrollbar { width: 0; height: 0; }
+  .bucket-bar {
+    scrollbar-width: none;
+  }
   .bucket-bar[hidden] { display: none; }
   .bucket-hint {
     padding: 0 1.4rem 0.7rem;
@@ -615,7 +695,10 @@
     scrollbar-width: none;
     overscroll-behavior-x: contain;
   }
-  .composer-buckets::-webkit-scrollbar { display: none; }
+  .composer-buckets::-webkit-scrollbar { width: 0; height: 0; }
+  .composer-buckets {
+    scrollbar-width: none;
+  }
   .composer-buckets .into-label {
     flex: 0 0 auto;
     color: var(--ink-faint);
@@ -733,16 +816,16 @@
 
     <!-- rim -->
     <ellipse cx="200" cy="130" rx="82" ry="14"
-             fill="none" stroke="#5b6a99" stroke-width="4"/>
+             fill="none" stroke="#6d7ab0" stroke-width="4"/>
 
     <!-- handle -->
     <path id="handle" d="M120,128 C120,70 280,70 280,128"
-          fill="none" stroke="#5b6a99" stroke-width="5" stroke-linecap="round"/>
+          fill="none" stroke="#6d7ab0" stroke-width="5" stroke-linecap="round"/>
 
     <!-- drip hint when empty -->
     <g id="dripHint" opacity="0">
-      <line x1="200" y1="58" x2="200" y2="86" stroke="#5b6a99" stroke-width="2.5" stroke-linecap="round"/>
-      <circle id="drip" cx="200" cy="92" r="4" fill="#f0b429"/>
+      <line x1="200" y1="56" x2="200" y2="84" stroke="#5b6a99" stroke-width="2.5" stroke-linecap="round"/>
+      <circle id="drip" cx="200" cy="90" r="4.5" fill="#f0b429"/>
     </g>
   </svg>
 </div>
@@ -1007,6 +1090,8 @@
       : (n === 1 ? 'idea in the bucket' : 'ideas in the bucket');
     dripHint.setAttribute('opacity', n === 0 ? '1' : '0');
     renderBlobs(vis);
+    // Stage glow when there are ideas
+    stage.classList.toggle('has-ideas', n > 0);
   }
 
   // random stable blobs resting on the liquid surface
