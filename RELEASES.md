@@ -48,11 +48,12 @@ Review actions, gentle review queue, random note, search/views, pins, backup, an
 - `51ae2c8` — build: add the v1.2.0 top-3 release commit
 - `ff7c16e` — docs: fix the v1.2.0 commit hash in RELEASES.md
 - `03bf723` — docs: record ff7c16e in the v1.2.0 release notes
+- `80af75a` — docs: record 03bf723 in the v1.2.0 release notes
 
 ### Version
 
 - `versionName`: 1.2.0
-- `versionCode`: set at release build time with `-PversionCode=<n>`; must be higher than the previous release's code.
+- `versionCode`: not chosen yet. It must be higher than the previous release's code and set at release build time with `-PversionCode=<that number>`.
 
 ### Build notes
 
@@ -60,6 +61,10 @@ Review actions, gentle review queue, random note, search/views, pins, backup, an
 - Sync into Android: `npm run cap:sync`
 - Release APK: `cd android && ./gradlew assembleRelease -PversionName=1.2.0 -PversionCode=<n>`
 - Pre-release gate: `bash check-apk.sh <apk>`
+
+### Release state
+
+The source release is committed on `freebuff/2848862f47c45b074b26398f`. The artifact release is not built or signed here. That still needs the toolchain from `build-env.sh`, a chosen `versionCode`, and the gate to pass on the machine or CI that has it.
 
 ## v1.1.0 — 2026-10-18
 

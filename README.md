@@ -15,9 +15,23 @@ The version is tracked in two places and they must agree:
 - `package.json` — `"version": "1.2.0"`
 - Android release build — passed at build time as `-PversionName=1.2.0 -PversionCode=<n>`
 
-The Android `build.gradle` does **not** hardcode the release version locally. It reads `-PversionName` / `-PversionCode` from the command line, and only falls back to local defaults (`1.0` / `1`) when those are absent. That is deliberate: a release should never accidentally ship with the local default version. The release step is what sets them.
+The Android `build.gradle` does **not** hardcode the release version locally. It reads `-PversionName` / `-PversionCode` from the command line, and only falls back to local defaults (`1.0.0` / `1`) when those are absent. That is deliberate: a release should never accidentally ship with the local default version. The release step is what sets them.
 
 Version code must increase on every release. Android will not replace an installed app with one whose `versionCode` did not go up.
+
+### Release model
+
+This project ships the Android release through the `@capacitor/android` pipeline, and the APK is built on the dev machine or CI where the toolchain from `build-env.sh` exists. The source release is committed here; the artifact release is not built or signed in this workspace.
+
+For a real v1.2.0 release you still need:
+
+1. A `versionCode` higher than the previous release's code.
+2. `npm run build && npx cap sync android` so the APK carries the latest `index.html` and plugin registrations.
+3. `cd android && ./gradlew assembleRelease -PversionName=1.2.0 -PversionCode=<n>`
+4. `bash check-apk.sh android/app/build/outputs/apk/release/app-release.apk` — do not ship until that passes.
+5. The release notes in `RELEASES.md` must still match the committed state before shipping.
+
+The release script for this release lives in `RELEASES.md` at the bottom. The commit-based release notes live at the top of that file. Do not edit the release script and the changelog independently.
 
 ## What is in this repo
 
