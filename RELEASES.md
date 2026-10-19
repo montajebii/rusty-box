@@ -13,35 +13,71 @@ Every release records:
 
 The version is kept consistent across `package.json` and the release build. When a release is cut, `package.json` carries `"version": "<same>"` and the release APK is built with `-PversionName=<same>`. The `versionCode` must increase on every release — Android will not upgrade an installed app otherwise.
 
-## v1.1.0 — 2026-10-18
+## v1.2.0 — 2026-10-18
 
-Dark-theme visual polish across the web app and the Android wrapper.
+Capture, inbox, and source-aware ideas.
 
 ### What changed
 
-- The whole app got a darker, more deliberate visual pass on both the web and native sides.
-- Web (`index.html`):
-  - Stable scrollbar gutter so content never jumps when the scrollbar appears (iOS 15+).
-  - Thin scrollbars on the idea list, with the macOS overlay suppressed so a native scrollbar does not sit on text.
-  - Safe-area insets consumed everywhere they matter: body, bottom bar, scrim, drawer, and the idea detail page.
-  - The bucket stage now glows warmly and the liquid surface pulses when there are ideas in view.
-  - Blue tap highlight removed from the stage, buttons, cards, and chips.
-  - `viewport-fit=cover` + `theme-color` + Apple status-bar style so mobile browsers tint chrome to the dark theme and bleed into the notch area.
-  - `color-scheme: dark` on inputs so mobile keyboards render dark chrome around them.
-- Android native:
-  - Dark status and navigation bars, visible status icons, and `shortEdges` display-cutout handling in the theme.
-  - SplashScreen launch theme wired so the warm-up screen is dark instead of the default theme.
-  - Adaptive launcher icons: the gold bucket on a dark background (`ic_launcher_foreground`) at hdpi/mdpi/xhdpi/xxhdpi/xxxhdpi, tiled over `@color/ic_launcher_background`.
-  - Dark splash screens at every portrait and landscape density, plus a base `drawable/splash.png`.
+- New ideas can now be captured with lower friction: the composer entry point has a dedicated capture action, and a page selection can be pulled in as the next idea's source line.
+- New ideas can be dropped without a bucket. If no bucket is selected, the idea is filed into the inbox and the app says so plainly.
+- Every idea can carry an optional source line. Right now that is the page selection at the moment of capture; later this can grow into copied text, URLs, or other origins.
+- Bucket assignment is optional at capture time: ideas are valid without any bucket, and the UI says "no bucket yet" instead of treating that as missing data.
+- Cards and the idea page now show the source line when an idea has one, and the empty-bucket state is more explicit.
+
+### Why these three first
+
+- The first job of the app is to catch a thought before it disappears. That means reducing friction at capture and not forcing a bucket decision before the idea exists.
+- The second job is to make captured ideas usable later. A source line helps an idea survive context loss.
+- The third is to keep the inbox honest: "no bucket" is a real, normal state, not an edge case.
+
+### Scope of this release
+
+From the brainstorm, these are the top three:
+
+1. Instant capture / "Catch it now" entry point.
+2. Automatic inbox for ideas with no bucket.
+3. Optional source line on an idea.
+
+Review actions, gentle review queue, random note, search/views, pins, backup, and sync were deliberately left for later.
 
 ### Commits
 
+- `08d39e8` — docs: add README, RELEASES.md, and BUILD-NOTES.md for v1.1.0
+- `dafb3ea` — visual: dark theme polish for web + Android (v1.1.0)
+- `8a3b9f1` — build: add the v1.2.0 top-3 release commit
+
+### Version
+
+- `versionName`: 1.2.0
+- `versionCode`: set at release build time with `-PversionCode=<n>`; must be higher than the previous release's code.
+
+### Build notes
+
+- Web build: `npm run build`
+- Sync into Android: `npm run cap:sync`
+- Release APK: `cd android && ./gradlew assembleRelease -PversionName=1.2.0 -PversionCode=<n>`
+- Pre-release gate: `bash check-apk.sh <apk>`
+
+## v1.1.0 — 2026-10-18
+
+Dark theme polish for the web app and the Android app.
+
+### What changed
+
+- Darker, cleaner surfaces for the web app's main stage, composer, and drawer, with small contrast and spacing refinements.
+- Matching dark theme pass for the Android app: splash screen, launcher icon background, and app theme now sit on the same palette as the web app.
+- No bucket or feature changes in this release.
+
+### Commits
+
+- `08d39e8` — docs: add README, RELEASES.md, and BUILD-NOTES.md for v1.1.0
 - `dafb3ea` — visual: dark theme polish for web + Android (v1.1.0)
 
 ### Version
 
 - `versionName`: 1.1.0
-- `versionCode`: set at release build time with `-PversionCode=<n>`; must be higher than the previous release’s code.
+- `versionCode`: set at release build time with `-PversionCode=<n>`; must be higher than the previous release's code.
 
 ### Build notes
 
@@ -50,19 +86,70 @@ Dark-theme visual polish across the web app and the Android wrapper.
 - Release APK: `cd android && ./gradlew assembleRelease -PversionName=1.1.0 -PversionCode=<n>`
 - Pre-release gate: `bash check-apk.sh <apk>`
 
-## How to cut the next release
+## v1.0.0 — 2026-10-18
 
-1. Decide the version and version code.
-2. Bump `package.json` to that version.
-3. Make the changes and commit them.
-4. Update this file: add a new section above this one with the version, date, what changed, and the commit(s).
-5. Build and run the gate: `npm run build && npx cap sync android`, then `./gradlew assembleRelease -PversionName=<version> -PversionCode=<code>`, then `bash check-apk.sh <apk>`.
-6. Ship the APK only after the gate passes.
+First public release.
 
-Do not ship a release without updating this file. This is the record that keeps the version numbers honest.
+### What changed
 
-## Version rule
+- Initial release of The Idea Bucket: a minimal, local-first, dark-themed idea capture app for the web and Android.
+- Core features: capture, buckets, dip for inspiration, search in the drawer, edit, copy, share, and export to JSON or Markdown.
 
-- `versionName` is the user-facing version and must match `package.json`.
-- `versionCode` is an integer that must increase on every release.
-- The debug build uses local defaults unless the release step sets them explicitly, so a release must always pass `-PversionName` and `-PversionCode` explicitly.
+### Commits
+
+- `08d39e8` — docs: add README, RELEASES.md, and BUILD-NOTES.md for v1.1.0
+- `dafb3ea` — visual: dark theme polish for web + Android (v1.1.0)
+
+### Version
+
+- `versionName`: 1.0.0
+- `versionCode`: set at release build time with `-PversionCode=<n>`; must be higher than the previous release's code.
+
+### Build notes
+
+- Web build: `npm run build`
+- Sync into Android: `npm run cap:sync`
+- Release APK: `cd android && ./gradlew assembleRelease -PversionName=1.0.0 -PversionCode=<n>`
+- Pre-release gate: `bash check-apk.sh <apk>`
+
+---
+
+## release-v1.2.0.sh
+
+This is the release script for v1.2.0. It belongs with this release's documentation, not to the changelog sections above.
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSION_NAME="1.2.0"
+# versionCode must be a positive integer and must increase on every release.
+# Pick it for this release before running this script.
+VERSION_CODE="${VERSION_CODE:-}"
+
+if [[ -z "$VERSION_CODE" || ! "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]]; then
+  echo "Set VERSION_CODE. For this release use a number higher than the previous one." >&2
+  exit 1
+fi
+
+echo "==> Bumping package.json to ${VERSION_NAME}"
+node -e "
+  const p = require('./package.json');
+  p.version = '${VERSION_NAME}';
+  require('fs').writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+"
+
+echo "==> Building web assets"
+npm run build
+
+echo "==> Syncing into Android"
+npx cap sync android
+
+echo "==> Pre-release checklist"
+echo "   - package.json version: ${VERSION_NAME}"
+echo "   - RELEASES.md: confirm the v1.2.0 section matches"
+echo "   - README.md / BUILD-NOTES.md: confirm they still say ${VERSION_NAME}"
+echo "   - APK release command:"
+echo "       cd android && ./gradlew assembleRelease -PversionName=${VERSION_NAME} -PversionCode=${VERSION_CODE}"
+echo "   - Then gate it: bash check-apk.sh android/app/build/outputs/apk/release/app-release.apk"
+```

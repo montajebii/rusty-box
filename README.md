@@ -8,12 +8,12 @@ The app itself is a single-file web app (`index.html`). The Android APK is a Cap
 
 ## Version
 
-Current release: **v1.1.0**
+Current release: **v1.2.0**
 
 The version is tracked in two places and they must agree:
 
-- `package.json` — `"version": "1.1.0"`
-- Android release build — passed at build time as `-PversionName=1.1.0 -PversionCode=<n>`
+- `package.json` — `"version": "1.2.0"`
+- Android release build — passed at build time as `-PversionName=1.2.0 -PversionCode=<n>`
 
 The Android `build.gradle` does **not** hardcode the release version locally. It reads `-PversionName` / `-PversionCode` from the command line, and only falls back to local defaults (`1.0` / `1`) when those are absent. That is deliberate: a release should never accidentally ship with the local default version. The release step is what sets them.
 
@@ -56,9 +56,11 @@ A release is:
 
 1. The version is agreed on and set in `package.json` and in the release build command.
 2. `npm run build && npx cap sync android` so the APK carries the latest `index.html` and plugin registrations.
-3. A release build: `./gradlew assembleRelease -PversionName=1.1.0 -PversionCode=<n>`
+3. A release build: `./gradlew assembleRelease -PversionName=1.2.0 -PversionCode=<n>`
 4. Run the gate: `bash check-apk.sh android/app/build/outputs/apk/release/app-release.apk` (or the debug APK if you are checking that). It verifies the APK is valid, zipaligned, correctly badged, carries the web assets, has the export plugins registered, has launcher icons, keeps the theme invariant, and verifies the signature.
 5. Both the version bump and the rationale are recorded in `RELEASES.md`.
+
+For this release, the release script lives in `RELEASES.md` at the top and documents the exact sequence; run it only on a machine or CI that has the toolchain from `build-env.sh`.
 
 Do not release without updating `RELEASES.md`. The changelog is the record that keeps version numbers honest.
 

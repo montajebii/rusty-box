@@ -1,10 +1,14 @@
-# Build notes for v1.1.0
+# Build notes for v1.2.0
 
 ## What built here
 
 - `npm run build` — succeeded. `www/index.html` is fresh from `index.html`.
 - `npm run cap:sync` — succeeded. Web assets and Capacitor plugins are synced into `android/`.
-- `git commit` — succeeded. The visual-fix work is committed as `dafb3ea` on `freebuff/2848862f47c45b074b26398f`.
+- The top 3 ideas from the brainstorming round are in `index.html`:
+  - Instant capture entry point (`/`, `+ capture`, composer focus, and a visible source line when text is selected on the page).
+  - Inbox-first model: new ideas are valid without a bucket, and the composer explicitly says `no bucket yet — ideas live in the inbox until you file them`.
+  - Source-aware ideas: selected text at capture time is kept and shown on the idea page under `from:` when present.
+- Bucket assignment is optional at capture time, and the idea page says `In the inbox — no bucket yet` instead of treating that as missing data.
 
 ## What did not build here
 
@@ -29,7 +33,7 @@ This cloud environment has none of those: no `ANDROID_HOME`, no `JAVA_HOME`, no 
 
 ```bash
 cd android
-./gradlew assembleRelease -PversionName=1.1.0 -PversionCode=<n>
+./gradlew assembleRelease -PversionName=1.2.0 -PversionCode=<n>
 ```
 
 The debug build is:
@@ -55,6 +59,10 @@ bash check-apk.sh <apk>
 
 It checks the artifact, the manifest badging (including the version the release claimed), the bundled web assets, the export plugins, the launcher icons, the theme invariant, and the signature. A release does not ship unless that passes.
 
-## What this means for v1.1.0
+## What this means for v1.2.0
 
-The work for this release is real and committed. The APK itself still needs to be built on the dev machine or CI, with `-PversionName=1.1.0 -PversionCode=<n>`, and then passed through `check-apk.sh`.
+The work for this release is real and committed. The APK itself still needs to be built on the dev machine or CI, with `-PversionName=1.2.0 -PversionCode=<n>`, and then passed through `check-apk.sh`.
+
+The `versionCode` for this release has not been chosen yet. Pick one that is higher than the previous release's `versionCode`, then run the release command with both `-PversionName=1.2.0` and `-PversionCode=<that number>`. Do not ship with the local fallback versionCode.
+
+For this release, set it before the APK build. The release checklist in `RELEASES.md` includes it as a required step.

@@ -203,6 +203,46 @@
     transform: scale(0.96);
   }
 
+  .capture-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    border-radius: 999px;
+    padding: 0.5rem 1.1rem;
+    font-family: inherit;
+    font-size: 0.8rem;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: all 0.2s;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .capture-btn:hover {
+    border-color: rgba(240, 180, 41, 0.4);
+    color: var(--gold);
+  }
+  .capture-btn:active {
+    transform: scale(0.96);
+  }
+
+  .composer-source {
+    width: min(92vw, 560px);
+    margin-top: 0.4rem;
+    color: var(--ink-faint);
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    word-break: break-word;
+    display: flex;
+    gap: 0.4rem;
+    align-items: baseline;
+  }
+  .composer-source::before {
+    content: '📎';
+    flex: 0 0 auto;
+  }
+
   /* ---------- Drawer ---------- */
   .scrim {
     position: fixed;
@@ -707,6 +747,30 @@
     text-transform: uppercase;
   }
 
+  .composer-buckets .capture-hint {
+    flex: 0 0 auto;
+    color: var(--ink-faint);
+    font-size: 0.66rem;
+    letter-spacing: 0.02em;
+  }
+
+  /* source line attached to the composer when text was selected before capture */
+  .composer-source {
+    width: min(92vw, 560px);
+    margin-top: 0.4rem;
+    color: var(--ink-faint);
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    word-break: break-word;
+    display: flex;
+    gap: 0.4rem;
+    align-items: baseline;
+  }
+  .composer-source::before {
+    content: '📎';
+    flex: 0 0 auto;
+  }
+
   /* idea cards: the buckets an idea belongs to */
   .bucket-chips {
     display: flex;
@@ -724,6 +788,21 @@
   .idea-page-nobucket {
     color: var(--ink-faint);
     font-size: 0.78rem;
+  }
+  .idea-page-source {
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--line);
+    color: var(--ink-faint);
+    font-size: 0.78rem;
+    word-break: break-word;
+    display: flex;
+    gap: 0.4rem;
+    align-items: baseline;
+  }
+  .idea-page-source::before {
+    content: '📎';
+    flex: 0 0 auto;
   }
   .edit-buckets-head {
     display: block;
@@ -840,6 +919,10 @@
 </div>
 
 <div class="composer-buckets" id="composerBuckets"></div>
+
+<button id="captureBtn" class="capture-btn" title="Capture an idea now" aria-label="Capture an idea now">+ capture</button>
+
+<div class="composer-source" id="composerSource"></div>
 
 <p class="counter"><strong id="count">0</strong> <span id="countLabel">ideas in the bucket</span></p>
 
@@ -1016,11 +1099,13 @@
     for (const pending of pendingBuckets) if (!names.includes(pending)) names.push(pending);
     composerBuckets.innerHTML =
       `<span class="into-label">${pendingBuckets.length ? 'into' : 'file into'}</span>` +
-      names.map(name => bucketChip(name, {
-        button: true,
-        active: pendingBuckets.includes(name),
-        title: pendingBuckets.includes(name) ? `Stop filing new ideas into “${name}”` : `File new ideas into “${name}”`
-      })).join('') +
+      (names.length === 0 && pendingBuckets.length === 0
+        ? '<span class="capture-hint">no bucket yet — ideas live in the inbox until you file them</span>'
+        : names.map(name => bucketChip(name, {
+            button: true,
+            active: pendingBuckets.includes(name),
+            title: pendingBuckets.includes(name) ? `Stop filing new ideas into “${name}”` : `File new ideas into “${name}”`
+          })).join('')) +
       `<button type="button" class="chip ghost" data-new-bucket title="Create a bucket">＋ new</button>`;
   }
 
@@ -1151,6 +1236,34 @@
     return `rgb(${r},${g},${b})`;
   }
 
+  // ---------- source capture ----------
+  // If the user pasted a URL or had text selected before focusing the input, stash it
+  // so the next captured idea can carry its origin without any extra step.
+  const _initialSelection = () => {
+    const sel = window.getSelection && window.getSelection();
+    if (!sel || !sel.rangeCount) return '';
+    const text = sel.toString().trim();
+    if (!text) return '';
+    // Keep it short and usable as a source line.
+    return text.length > 280 ? text.slice(0, 280) + '…' : text;
+  };
+  const _initialUrl = () => {
+    try {
+      const url = document.activeElement && document.activeElement.value;
+      if (url && /^https?:\/\//i.test(url)) return url;
+    } catch (_) { /* not an input value we care about */ }
+    return '';
+  };
+
+  // When text is selected before the user taps the input, show a small “from: …" line
+  // above the compose row so the source is visible before capture, and the user can cancel
+  // it if it is not actually useful.
+  input.addEventListener('focus', () => {
+    const src = _initialSelection();
+    if (src) _renderSource(src);
+  }, { passive: true });
+  input.addEventListener('input', () => _clearSource(), { passive: true });
+
   // ---------- actions ----------
   function addIdea() {
     const text = input.value.trim();
@@ -1161,15 +1274,21 @@
       color: PALETTE[Math.floor(Math.random() * PALETTE.length)],
       created: Date.now(),
       lastViewed: Date.now(),
-      buckets: [...pendingBuckets]
+      buckets: [...pendingBuckets],
+      source: _initialSelection() || ''
     };
+    if (idea.buckets.length === 0 && activeBucket) {
+      idea.buckets.push(activeBucket);
+    }
     ideas.unshift(idea);
     save(ideas);
     input.value = '';
-    refreshBuckets();        // bucket counts, glass level and list all moved
+    _clearSource();
+    refreshBuckets();
     animateDrop(idea.color);
     if (pendingBuckets.length) showToast(`💧 Filed into ${pendingBuckets.join(' + ')}`);
-    // under a filter the new idea may not show up at all — say so
+    else if (idea.buckets.length === 1 && idea.buckets[0] === activeBucket) showToast(`💧 Dropped into “${activeBucket}”`);
+    else if (idea.buckets.length === 0) showToast(`💧 Dropped into the inbox — file it later`);
     else if (activeBucket && !inBucket(idea, activeBucket)) showToast(`💧 Dropped — not filed under “${activeBucket}”`);
   }
 
@@ -1294,6 +1413,15 @@
     return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  function _clearSource() {
+    const s = $('composerSource');
+    if (s) s.innerHTML = '';
+  }
+  function _renderSource(text) {
+    const s = $('composerSource');
+    s.innerHTML = text ? `from: ${escapeHtml(text)}` : '';
+  }
+
   function truncate(s, n) {
     return s.length > n ? s.slice(0, n - 1) + '…' : s;
   }
@@ -1352,6 +1480,14 @@
     document.body.appendChild(overlay);
     const card = overlay.querySelector('.idea-page-card');
 
+    // When the user is typing in the composer and nothing is selected, offer a tiny
+    // capture fallback inline: one tap and the composer grows a source line.
+    const _composerSourceLine = () => {
+      const src = _initialSelection();
+      if (!src) return '';
+      return `<div class="composer-source">from: ${escapeHtml(src)}</div>`;
+    };
+
     let editing = false;
     let editArea = null;
     let editTimer = null;
@@ -1368,8 +1504,9 @@
         <div class="idea-page-buckets">${
           ideaBuckets(idea).length
             ? ideaBuckets(idea).map(b => bucketChip(b)).join('')
-            : '<span class="idea-page-nobucket">In no bucket yet — tap ✏ Edit to file it</span>'
+            : '<span class="idea-page-nobucket">In the inbox — no bucket yet. Tap ✏ Edit to file it.</span>'
         }</div>
+        ${idea.source ? `<div class="idea-page-source">from: ${escapeHtml(idea.source)}</div>` : ''}
         <div class="idea-page-meta">
           <div class="idea-page-meta-cell">
             <span class="idea-page-meta-label">Created</span>
@@ -1443,8 +1580,19 @@
     };
 
     function closeWithGuard() {
+      let discardBucketChanges = false;
+      if (editing && draftBuckets.length > 0 && draftBuckets.length !== ideaBuckets(idea).length) {
+        if (!window.confirm('File this idea before closing?')) {
+          discardBucketChanges = true;
+        }
+      }
       if (editing && editArea && editArea.value.trim() && editArea.value !== idea.text) {
         if (!window.confirm('Discard your unsaved edit?')) return;
+      }
+      if (discardBucketChanges) {
+        draftBuckets = [...ideaBuckets(idea)];
+        editing = false;
+        paint();
       }
       close();
     }
@@ -1486,10 +1634,9 @@
       if (editArea) editArea.blur();
       editing = false;
       editArea = null;
-      draftBuckets = [];
-      card.style.removeProperty('--kb-shift');
-      paint();
-    }
+      draftBuckets = [];      card.style.removeProperty('--kb-shift');
+    paint();
+  }
 
     function enterEdit() {
       draftBuckets = [...ideaBuckets(idea)];
@@ -1727,6 +1874,29 @@
 
   // ---------- events ----------
   $('dropBtn').addEventListener('click', addIdea);
+  $('captureBtn').addEventListener('click', () => {
+    // Instant entry point: focus the composer and surface any text selected on the
+    // page as the next idea's source line before anything is saved.
+    _clearSource();
+    input.focus();
+    const src = _initialSelection();
+    if (src) _renderSource(src);
+  });
+  // Filling the composer from a page selection is a quick paste path, not auto-capture.
+  $('captureBtn').addEventListener('dblclick', () => {
+    const src = _initialSelection();
+    if (src && !input.value.trim()) {
+      input.value = src;
+    }
+  });
+  // Global shortcut so the top-of-app capture path is one keypress while reading.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '/' && !['INPUT','TEXTAREA','SELECT'].includes((e.target || {}).nodeName)) {
+      e.preventDefault();
+      _clearSource();
+      input.focus();
+    }
+  }, { passive: false, capture: true });
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') addIdea(); });
   $('dipBtn').addEventListener('click', dip);
   $('openBtn').addEventListener('click', openDrawer);
