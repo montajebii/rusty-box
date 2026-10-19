@@ -47,6 +47,7 @@ Review actions, gentle review queue, random note, search/views, pins, backup, an
 - `dafb3ea` — visual: dark theme polish for web + Android (v1.1.0)
 - `51ae2c8` — build: add the v1.2.0 top-3 release commit
 - `ff7c16e` — docs: fix the v1.2.0 commit hash in RELEASES.md
+- `03bf723` — docs: record ff7c16e in the v1.2.0 release notes
 
 ### Version
 
