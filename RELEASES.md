@@ -46,6 +46,7 @@ Review actions, gentle review queue, random note, search/views, pins, backup, an
 - `08d39e8` — docs: add README, RELEASES.md, and BUILD-NOTES.md for v1.1.0
 - `dafb3ea` — visual: dark theme polish for web + Android (v1.1.0)
 - `51ae2c8` — build: add the v1.2.0 top-3 release commit
+- `ff7c16e` — docs: fix the v1.2.0 commit hash in RELEASES.md
 
 ### Version
 
