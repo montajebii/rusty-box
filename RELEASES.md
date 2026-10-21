@@ -53,18 +53,18 @@ Review actions, gentle review queue, random note, search/views, pins, backup, an
 ### Version
 
 - `versionName`: 1.2.0
-- `versionCode`: not chosen yet. It must be higher than the previous release's code and set at release build time with `-PversionCode=<that number>`.
+- `versionCode`: 1 (first real release; there are no previous release tags in this repository, so 1 is the natural starting point). Set at release build time with `-PversionCode=1` — and increase it on every later release.
 
 ### Build notes
 
 - Web build: `npm run build`
 - Sync into Android: `npm run cap:sync`
-- Release APK: `cd android && ./gradlew assembleRelease -PversionName=1.2.0 -PversionCode=<n>`
+- Release APK: `cd android && ./gradlew assembleRelease -PversionName=1.2.0 -PversionCode=1`
 - Pre-release gate: `bash check-apk.sh <apk>`
 
 ### Release state
 
-The source release is committed on `freebuff/2848862f47c45b074b26398f`. The artifact release is not built or signed here. That still needs the toolchain from `build-env.sh`, a chosen `versionCode`, and the gate to pass on the machine or CI that has it.
+The source release is committed on main. The artifact release is not built or signed here. That still needs the toolchain from `build-env.sh`, the chosen `versionCode=1`, and the gate to pass on the machine or CI that has it.
 
 ## v1.1.0 — 2026-10-18
 
@@ -84,13 +84,13 @@ Dark theme polish for the web app and the Android app.
 ### Version
 
 - `versionName`: 1.1.0
-- `versionCode`: set at release build time with `-PversionCode=<n>`; must be higher than the previous release's code.
+- `versionCode`: 1 (first real release; there are no previous release tags in this repository, so 1 is the natural starting point). Set at release build time with `-PversionCode=1` — and increase it on every later release.
 
 ### Build notes
 
 - Web build: `npm run build`
 - Sync into Android: `npm run cap:sync`
-- Release APK: `cd android && ./gradlew assembleRelease -PversionName=1.1.0 -PversionCode=<n>`
+- Release APK: `cd android && ./gradlew assembleRelease -PversionName=1.1.0 -PversionCode=1`
 - Pre-release gate: `bash check-apk.sh <apk>`
 
 ## v1.0.0 — 2026-10-18
@@ -110,13 +110,13 @@ First public release.
 ### Version
 
 - `versionName`: 1.0.0
-- `versionCode`: set at release build time with `-PversionCode=<n>`; must be higher than the previous release's code.
+- `versionCode`: 1 (first real release; there are no previous release tags in this repository, so 1 is the natural starting point). Set at release build time with `-PversionCode=1` — and increase it on every later release.
 
 ### Build notes
 
 - Web build: `npm run build`
 - Sync into Android: `npm run cap:sync`
-- Release APK: `cd android && ./gradlew assembleRelease -PversionName=1.0.0 -PversionCode=<n>`
+- Release APK: `cd android && ./gradlew assembleRelease -PversionName=1.0.0 -PversionCode=1`
 - Pre-release gate: `bash check-apk.sh <apk>`
 
 ---
@@ -130,9 +130,7 @@ This is the release script for v1.2.0. It belongs with this release's documentat
 set -euo pipefail
 
 VERSION_NAME="1.2.0"
-# versionCode must be a positive integer and must increase on every release.
-# Pick it for this release before running this script.
-VERSION_CODE="${VERSION_CODE:-}"
+VERSION_CODE="${VERSION_CODE:-1}"
 
 if [[ -z "$VERSION_CODE" || ! "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]]; then
   echo "Set VERSION_CODE. For this release use a number higher than the previous one." >&2

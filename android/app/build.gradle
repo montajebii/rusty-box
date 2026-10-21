@@ -1,5 +1,5 @@
 def buildVersionCode = (rootProject.findProperty('versionCode') ?: project.findProperty('versionCode') ?: 1) as Integer
-def buildVersionName = (rootProject.findProperty('versionName') ?: project.findProperty('versionName') ?: '1.0.0') as String
+def buildVersionName = (rootProject.findProperty('versionName') ?: project.findProperty('versionName') ?: '1.2.0') as String
 
 android {
     namespace 'com.ideabucket.app'
