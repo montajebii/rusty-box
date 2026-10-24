@@ -20,5 +20,4 @@ stash-i18n-full.patch
 # AI sandbox workspace — local-only, never commit secrets or platform dirs
 .env
 skills/
-download/
 upload/
