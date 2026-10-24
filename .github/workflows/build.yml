@@ -68,6 +68,8 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          # the lockfile lives in legacy/ since the v1 freeze
+          cache-dependency-path: legacy/package-lock.json
 
       - name: Install locked dependencies
         run: npm ci
@@ -106,20 +108,20 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          # the lockfile lives in legacy/ since the v1 freeze
+          cache-dependency-path: legacy/package-lock.json
 
       - name: Install locked dependencies
         run: npm ci
 
       - name: Select JDK 21
-        run: |
-          set -euo pipefail
-          # The image carries JDK 8/11/17/21/25 and defaults to 17; AGP 8.13 needs 17+.
-          # android/gradle.properties also pins the dev machine's JDK 21, so build on 21 here
-          # for the same toolchain both places.
-          JDK="${JAVA_HOME_21_X64:-/usr/lib/jvm/temurin-21-jdk-amd64}"
-          test -x "$JDK/bin/javac" || { echo "::error::JDK 21 not found at $JDK"; exit 1; }
-          echo "JAVA_HOME=$JDK" >> "$GITHUB_ENV"
-          "$JDK/bin/java" -version
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+        # setup-java exports JAVA_HOME; build-env.sh prefers it for AGP. The old
+        # probe of JAVA_HOME_21_X64 / a hardcoded temurin path stopped matching
+        # the runner image and left the legacy APK job red on every push.
 
       # Fail in seconds, with the script's own message, if the SDK layout here is not what
       # build-apk.sh / check-apk.sh expect — instead of five minutes into the build.

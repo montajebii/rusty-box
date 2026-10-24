@@ -65,18 +65,16 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: legacy/package-lock.json
 
       - name: Install locked dependencies
         run: npm ci
 
       - name: Select JDK 21
-        run: |
-          set -euo pipefail
-          # The image carries JDK 8/11/17/21/25 and defaults to 17; AGP 8.13 needs 17+.
-          JDK="${JAVA_HOME_21_X64:-/usr/lib/jvm/temurin-21-jdk-amd64}"
-          test -x "$JDK/bin/javac" || { echo "::error::JDK 21 not found at $JDK"; exit 1; }
-          echo "JAVA_HOME=$JDK" >> "$GITHUB_ENV"
-          "$JDK/bin/java" -version
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
 
       # Fail in seconds, with the script's own message, if the SDK layout here is not what the
       # build scripts expect — instead of minutes into the build.
