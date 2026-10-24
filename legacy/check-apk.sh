@@ -51,6 +51,16 @@ for p in glob.glob('android/app/build/test-results/testDebugUnitTest/TEST-*.xml'
     r = xml.dom.minidom.parse(p).documentElement
     tot += int(r.getAttribute('tests'))
     bad += int(r.getAttribute('failures')) + int(r.getAttribute('errors')) + int(r.getAttribute('skipped'))
+    # gradle runs with -q, so per-test failures would otherwise vanish; the
+    # XML report is the only trace that survives. Print name + first line
+    # of every failure so CI logs can be acted on.
+    for case in r.getElementsByTagName('testcase'):
+        for kind in ('failure', 'error'):
+            for node in case.getElementsByTagName(kind):
+                msg = (node.getAttribute('message') or '').replace(chr(10), ' ')[:200]
+                detail = (node.firstChild.nodeValue or '').strip().split(chr(10))[0][:200] if node.firstChild else ''
+                print(f"  {case.getAttribute('classname')} > {case.getAttribute('name')} {kind.upper()}")
+                print(f"    {msg}" + (f" | {detail}" if detail else ""))
 print(f'  {tot} tests, {bad} failed/skipped')
 sys.exit(1 if (bad or tot == 0) else 0)
 PY
