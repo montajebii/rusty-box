@@ -21,3 +21,19 @@ Stage Summary:
 - GitHub main now at 6eac566: v1.2.0 project state + CONVERSATION-LOG.md + hardened .gitignore
 - .env remains local-only (never pushed); token lives only in local .git/config
 - Recommended user rotate/revoke the shared PAT after this session
+
+---
+Task ID: 2
+Agent: Z.ai main agent (GLM)
+Task: Follow-up "yes" — push download/ deliverables and strip token from remote URL
+
+Work Log:
+- Removed download/ from .gitignore; committed download/README.md stub as deliverables marker (f15e9fa)
+- Pushed to origin/main (6eac566..f15e9fa) BEFORE stripping credentials
+- Noted platform auto-commit c8dc5d7 (worklog.md) entered history; verified its content contains no real secrets
+- Stripped token from remote URL: origin now https://github.com/montajebii/rusty-box.git (no credentials in .git/config)
+- Verified final state: main at f15e9fa, working tree clean, real token absent from all tracked files
+
+Stage Summary:
+- Backup fully complete and credential-free: remote URL clean, .env local-only, token only in chat history
+- Future pushes will need fresh credentials (user advised to create a fine-grained scoped PAT)
