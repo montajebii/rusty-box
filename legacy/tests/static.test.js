@@ -81,14 +81,18 @@ test('capacitor.config.json appId is stable', () => {
   assert.equal(cfg.appId, 'com.ideabucket.app');
 });
 
+// Since the v1 freeze, the GitHub workflows live at the repository root,
+// one level above this frozen suite.
+const REPO_ROOT = path.resolve(ROOT, '..');
+
 test('GitHub workflows are valid YAML with expected triggers', () => {
   for (const wf of ['build.yml', 'release.yml']) {
-    const doc = parse(fs.readFileSync(path.join(ROOT, '.github/workflows', wf), 'utf8'));
+    const doc = parse(fs.readFileSync(path.join(REPO_ROOT, '.github/workflows', wf), 'utf8'));
     assert.ok(doc.name, `${wf}: missing workflow name`);
     assert.ok(doc.jobs && Object.keys(doc.jobs).length > 0, `${wf}: no jobs`);
     assert.ok(doc.on, `${wf}: missing trigger`);
   }
-  const build = parse(fs.readFileSync(path.join(ROOT, '.github/workflows/build.yml'), 'utf8'));
+  const build = parse(fs.readFileSync(path.join(REPO_ROOT, '.github/workflows/build.yml'), 'utf8'));
   assert.ok(build.jobs.web, 'build.yml should keep the web-checks job');
   assert.ok(build.jobs.apk, 'build.yml should keep the apk job');
 });
