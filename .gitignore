@@ -16,3 +16,9 @@ android/capacitor-cordova-android-plugins/
 # Session backup of pre-merge i18n work
 index.i18n-wip.html
 stash-i18n-full.patch
+
+# AI sandbox workspace — local-only, never commit secrets or platform dirs
+.env
+skills/
+download/
+upload/
