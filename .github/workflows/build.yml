@@ -1,7 +1,8 @@
 # Build — every commit, on every branch.
 #
-# Two jobs, cheapest first:
+# Three jobs, cheapest first:
 #
+#   rust  The v2 pure-Rust app: fmt, clippy -D warnings, cargo test, release build.
 #   web   The app is one HTML file, so a stray syntax error in its inline <script>
 #         white-screens the app on launch and nothing else in CI would notice. This job
 #         installs the locked dependencies and parses that script.
@@ -9,7 +10,10 @@
 #         then uploads the APK as a build artifact you can download from the run page and
 #         sideload straight onto a phone.
 #
-# Tag pushes (v*) are built by release.yml, which also publishes the APK.
+# Since v2 the app itself lives in the Rust workspace at the repo root; the frozen v1
+# web app (index.html + Capacitor wrapper) lives under legacy/ and is still built here.
+#
+# Tag pushes (v1.*) are built by release.yml, which also publishes the APK.
 name: Build
 
 on:
@@ -28,10 +32,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  rust:
+    name: Rust workspace checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Formatting
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Tests
+        run: cargo test --workspace
+
   web:
-    name: Web app checks
+    name: Web app checks (legacy v1)
     # Pinned, not ubuntu-latest: that label moves to Ubuntu 26.04 in November 2026.
     runs-on: ubuntu-24.04
+    defaults:
+      run:
+        # The frozen v1 app moved here wholesale; nothing at the root changed.
+        working-directory: legacy
     steps:
       - uses: actions/checkout@v7
 
@@ -39,6 +68,8 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          # the lockfile lives in legacy/ since the v1 freeze
+          cache-dependency-path: legacy/package-lock.json
 
       - name: Install locked dependencies
         run: npm ci
@@ -60,10 +91,16 @@ jobs:
           node --check "$RUNNER_TEMP/inline.js"
           echo "✔ inline JavaScript parses"
 
+      - name: Unit tests (jsdom)
+        run: npm test
+
   apk:
-    name: APK + pre-release checks
+    name: APK + pre-release checks (legacy v1)
     needs: web
     runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: legacy
     steps:
       - uses: actions/checkout@v7
 
@@ -71,20 +108,20 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          # the lockfile lives in legacy/ since the v1 freeze
+          cache-dependency-path: legacy/package-lock.json
 
       - name: Install locked dependencies
         run: npm ci
 
       - name: Select JDK 21
-        run: |
-          set -euo pipefail
-          # The image carries JDK 8/11/17/21/25 and defaults to 17; AGP 8.13 needs 17+.
-          # android/gradle.properties also pins the dev machine's JDK 21, so build on 21 here
-          # for the same toolchain both places.
-          JDK="${JAVA_HOME_21_X64:-/usr/lib/jvm/temurin-21-jdk-amd64}"
-          test -x "$JDK/bin/javac" || { echo "::error::JDK 21 not found at $JDK"; exit 1; }
-          echo "JAVA_HOME=$JDK" >> "$GITHUB_ENV"
-          "$JDK/bin/java" -version
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+        # setup-java exports JAVA_HOME; build-env.sh prefers it for AGP. The old
+        # probe of JAVA_HOME_21_X64 / a hardcoded temurin path stopped matching
+        # the runner image and left the legacy APK job red on every push.
 
       # Fail in seconds, with the script's own message, if the SDK layout here is not what
       # build-apk.sh / check-apk.sh expect — instead of five minutes into the build.
@@ -102,7 +139,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('legacy/android/**/*.gradle', 'legacy/android/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             gradle-${{ runner.os }}-
 
@@ -118,6 +155,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: idea-bucket-debug
-          path: idea-bucket-debug.apk
+          path: legacy/idea-bucket-debug.apk
           if-no-files-found: error
           retention-days: 30

@@ -6,8 +6,14 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 # Self-contained environment (same pins as check-apk.sh) — survives reboot/logout.
-export JAVA_HOME=/usr/lib/jvm/java-21-openjdk   # system default JDK breaks AGP
-export ANDROID_HOME="$HOME/Android/Sdk"
+# The dev-machine pins apply only when the calling environment does not already
+# provide a toolchain: CI runners export JAVA_HOME (actions/setup-java) and
+# ANDROID_HOME (preinstalled SDK), and those must win. Forcing the pins here
+# made every CI APK build fail with "JAVA_HOME is set to an invalid directory".
+: "${JAVA_HOME:=/usr/lib/jvm/java-21-openjdk}"   # system default JDK breaks AGP
+export JAVA_HOME
+: "${ANDROID_HOME:=$HOME/Android/Sdk}"
+export ANDROID_HOME
 
 # 1. Refresh bundled web assets from the web app (needs node_modules; skip if absent)
 if [ -d node_modules ]; then
