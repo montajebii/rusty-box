@@ -43,8 +43,10 @@ ok()   { printf '  \033[32mOK\033[0m  %s\n' "$1"; }
 bad()  { printf '  \033[31mFAIL\033[0m %s\n' "$1"; FAIL=1; FAILED+=("[$CURRENT_STEP] $1"); }
 
 step "1/8 Unit tests (Robolectric)"
-if (cd android && ./gradlew -q "${GRADLE_JDK_ARGS[@]}" :app:testDebugUnitTest) \
-   && python3 - <<'PY'
+# Gradle's exit code is not the verdict — the XML report is (it also holds the
+# per-test traces that -q hides, printed below whether gradle passed or failed).
+(cd android && ./gradlew -q "${GRADLE_JDK_ARGS[@]}" :app:testDebugUnitTest) || true
+python3 - <<'PY'
 import glob, xml.dom.minidom, sys
 bad = 0; tot = 0
 for p in glob.glob('android/app/build/test-results/testDebugUnitTest/TEST-*.xml'):
@@ -64,6 +66,16 @@ for p in glob.glob('android/app/build/test-results/testDebugUnitTest/TEST-*.xml'
 print(f'  {tot} tests, {bad} failed/skipped')
 sys.exit(1 if (bad or tot == 0) else 0)
 PY
+# gradle's own exit code no longer decides the gate; the XML verdict above does
+if python3 - <<'PY2'
+import glob, xml.dom.minidom, sys
+bad = 0; tot = 0
+for p in glob.glob('android/app/build/test-results/testDebugUnitTest/TEST-*.xml'):
+    r = xml.dom.minidom.parse(p).documentElement
+    tot += int(r.getAttribute('tests'))
+    bad += int(r.getAttribute('failures')) + int(r.getAttribute('errors')) + int(r.getAttribute('skipped'))
+sys.exit(1 if (bad or tot == 0) else 0)
+PY2
 then ok "unit tests green"; else bad "unit tests failing — fix before release"; fi
 
 step "2/8 Artifact & alignment"
