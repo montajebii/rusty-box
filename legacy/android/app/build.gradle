@@ -71,3 +71,12 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
 }
+
+// Print failing tests with full stack traces to the build log — the HTML
+// report is not available on CI, and '6 failed' without a reason helps nobody.
+tasks.withType(Test).configureEach {
+    testLogging {
+        events 'failed'
+        exceptionFormat 'full'
+    }
+}
