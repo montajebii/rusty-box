@@ -2,133 +2,120 @@
 
 Drop a thought in. Dip for old ones.
 
-A minimal idea-capture app: type an idea, drop it into a bucket, and dip back into old ones later. Ideas live in buckets, can be in several at once, and can be searched, edited, exported as JSON or Markdown, and shared. Everything is stored locally in the browser.
+A minimal idea-capture app: type an idea, drop it into a bucket, and dip back
+into old ones later. Ideas live in buckets, can be in several at once, and can
+be searched, edited, exported as JSON or Markdown, and imported again.
 
-The app itself is a single-file web app (`index.html`). The Android APK is a Capacitor wrapper around that web app.
+Since **v2.0.0** the entire application is **pure Rust** — a Cargo workspace
+with one domain library and one web server binary. The UI is fully
+server-rendered and ships **zero JavaScript**; every interaction is a link or
+a form. The v1 single-file web app and its Capacitor Android wrapper are
+frozen under [`legacy/`](legacy/) and still build from there.
 
 ## Version
 
-Current release: **v1.2.0**
+Current release: **v2.0.0** — see [`RELEASES.md`](RELEASES.md).
 
-The version is tracked in two places and they must agree:
+The version is tracked in the workspace `Cargo.toml`
+(`[workspace.package] version = "2.0.0"`) and both crates inherit it.
 
-- `package.json` — `"version": "1.2.0"`
-- Android release build — passed at build time as `-PversionName=1.2.0 -PversionCode=1`
+## Architecture
 
-The Android `build.gradle` does **not** hardcode the release version locally. It reads `-PversionName` / `-PversionCode` from the command line, and only falls back to local defaults (`1.0.0` / `1`) when those are absent. That is deliberate: a release should never accidentally ship with the local default version. The release step is what sets them.
-
-Version code must increase on every release. Android will not replace an installed app with one whose `versionCode` did not go up.
-
-### Release model
-
-This project ships the Android release through the `@capacitor/android` pipeline, and the APK is built on the dev machine or CI where the toolchain from `build-env.sh` exists. The source release is committed here; the artifact release is not built or signed in this workspace.
-
-For a real v1.2.0 release you still need:
-
-1. A `versionCode`. This is the first real release for the repository, so it starts at `1`. Every later release must use a higher number.
-2. `npm run build && npx cap sync android` so the APK carries the latest `index.html` and plugin registrations.
-3. `cd android && ./gradlew assembleRelease -PversionName=1.2.0 -PversionCode=1`
-4. `bash check-apk.sh android/app/build/outputs/apk/release/app-release.apk` — do not ship until that passes.
-5. The release notes in `RELEASES.md` must still match the committed state before shipping.
-
-The release script for this release lives in `RELEASES.md` at the bottom. The commit-based release notes live at the top of that file. Do not edit the release script and the changelog independently.
-
-## What is in this repo
-
-- `index.html` — the whole app, in one file
-- `package.json` — app metadata, version, and the Capacitor/npm scripts
-- `www/` — the web build. `npm run build` regenerates it from `index.html`
-- `capacitor.config.json` — Capacitor app id, name, web dir, background color
-- `android/` — the Capacitor Android project
-- `check-apk.sh` — pre-release gate. Run it on an APK before shipping.
-- `build-env.sh` — resolves the Android SDK/JDK/build-tools the build and check scripts need
-
-## Quick start (web)
-
-```bash
-npm run build
-npm run cap:sync
+```
+crates/
+  ideabucket-core      domain: Idea model (v1-compatible JSON shape), bucket
+                       rules, JSON file store (atomic saves, corrupt-file
+                       quarantine), search, dip, JSON/Markdown export, import
+  ideabucket-server    axum web server: server-rendered askama templates,
+                       flash toasts, deep links, exports/imports
+docs/
+  rust-rewrite-plan.md the full rewrite plan: goals, parity table, decisions
+legacy/                frozen v1.2.0: index.html, Capacitor/Android wrapper,
+                       jsdom test suite, build scripts
 ```
 
-That copies `index.html` into `www/`, then syncs it into the Android assets. The web app can be served directly from `www/` or opened from `index.html` during development.
+Design highlights:
 
-## Building the Android APK
+- **No JavaScript anywhere.** v1's composer, drawer, idea page and toasts all
+  became plain HTML forms and links. Filters travel in the query string, so
+  any view — including search results — is a bookmarkable URL.
+- **Drop-in data compatibility.** The store file is the same flat JSON array
+  v1 kept in localStorage and exported, so you can migrate from the browser
+  app by pasting an existing `idea-bucket.json` export into the import form.
+- **Ported algorithms.** Bucket colors, the glass liquid level, blob layout
+  and export formats are exact ports of v1 (see `docs/rust-rewrite-plan.md`).
 
-The Android build needs a real Android toolchain: an Android SDK with `build-tools;35.0.0` and `platforms;android-35`, plus JDK 21 (AGP 8.13 requires it). `build-env.sh` is the one script that decides where those live, and `check-apk.sh` sources it.
-
-```bash
-cd android
-./gradlew assembleDebug        # debug APK
-./gradlew assembleRelease -PversionName=1.1.0 -PversionCode=<n>   # release APK
-```
-
-The debug APK lands at `android/app/build/outputs/apk/debug/app-debug.apk`.
-
-## Releases
-
-A release is:
-
-1. The version is agreed on and set in `package.json` and in the release build command.
-2. `npm run build && npx cap sync android` so the APK carries the latest `index.html` and plugin registrations.
-3. A release build: `./gradlew assembleRelease -PversionName=1.2.0 -PversionCode=1`
-4. Run the gate: `bash check-apk.sh android/app/build/outputs/apk/release/app-release.apk` (or the debug APK if you are checking that). It verifies the APK is valid, zipaligned, correctly badged, carries the web assets, has the export plugins registered, has launcher icons, keeps the theme invariant, and verifies the signature.
-5. Both the version bump and the rationale are recorded in `RELEASES.md`.
-
-For this release, the release script lives in `RELEASES.md` at the top and documents the exact sequence; run it only on a machine or CI that has the toolchain from `build-env.sh`.
-
-Do not release without updating `RELEASES.md`. The changelog is the record that keeps version numbers honest.
-
-## Pre-release gate
-
-`check-apk.sh` checks, in order:
-
-1. JVM unit tests (Robolectric) pass
-2. The APK exists, is a valid zip, and is zipaligned
-3. Manifest badging: package, label, min/target SDK, launchable activity, and — when a release states them — the exact `versionName` and `versionCode`
-4. Web assets (`assets/public/index.html`) are bundled
-5. Export plugins (`@capacitor/filesystem`, `@capacitor/share`) are registered
-6. Launcher icon PNGs are packaged
-7. The theme invariant: `AppTheme.NoActionBar` must descend from an AppCompat-family theme (the real device crash regression)
-8. The APK signature verifies
-
-## Environment for builds
-
-Builds require the toolchain from `build-env.sh`. On machines without it, the build cannot run. This includes the current cloud environment: there is no Android SDK, no JDK, and no `~/Android/Sdk` here, so `assembleDebug` and `assembleRelease` cannot be executed from this workspace. That is expected and does not block anything — the web app, the sync, and the commit are all real; only the Gradle APK compile needs the missing toolchain.
-
-When in doubt about whether a machine can build, run this first:
+## Quick start
 
 ```bash
-. ./build-env.sh && echo "ready" || echo "missing toolchain"
+cargo run -p ideabucket-server
+# → http://127.0.0.1:8088
 ```
 
-## Locales
+Configuration (all optional, via environment):
 
-The app ships its name in Persian too (`راستی`). Keep any locale additions consistent with what `check-apk.sh` expects (it checks for the Persian label in the APK).
+| variable          | default                 | meaning                       |
+|-------------------|-------------------------|-------------------------------|
+| `IDEABUCKET_HOST` | `127.0.0.1`             | bind address (local by default — there is no auth) |
+| `IDEABUCKET_PORT` | `8088`                  | bind port                     |
+| `IDEABUCKET_DATA` | `data/idea-bucket.json` | the JSON store file           |
+
+The store is created on first save. A corrupt data file is renamed to
+`<file>.corrupt-backup` before a fresh one starts — the same quarantine the
+browser app applies to a damaged localStorage payload.
 
 ## Tests
 
-The web app has a full jsdom test suite (no browser needed) — the real `index.html` is booted in a simulated DOM and driven end to end:
+Both crates carry a full suite, run on every push in the `rust` job of the
+Build workflow:
 
 ```bash
-npm test          # node --test "tests/**/*.test.js"
+cargo test --workspace
 ```
 
 | Suite | What it covers |
 |---|---|
-| `tests/static.test.js` | structure: inline script parses, every `$('id')` target exists, no duplicate ids, workflows are valid YAML, `bash -n` on all scripts |
-| `tests/storage.test.js` | persistence: round-trips, junk filtering, legacy-entry normalization, corrupt-JSON quarantine, quota-failure toast |
-| `tests/buckets.test.js` | bucket model: naming rules, case-insensitive reuse, multi-bucket ideas, pending ("file into") flow, bucket deletion |
-| `tests/composer.test.js` | capture: drops via button/Enter, empty rejection, glass level/counter/drip, drop animation, source-line arming |
-| `tests/drawer.test.js` | ideas drawer: open/close/a11y, search over text and buckets, empty states, filter chips |
-| `tests/idea-page.test.js` | idea page: edit flow, draft bucket toggles, close guard (nothing unsaved is silently lost), delete, share fallback, Escape scoping |
-| `tests/export.test.js` | JSON + Markdown export payloads (sections, "also in" notes, unfiled) |
-| `tests/route.test.js` | deep links `/idea/<id>`, unknown-id bounce |
-| `tests/scripts.test.js` | `build-env.sh` toolchain contract, `make-release.sh` semver guard, `check-apk.sh` fail-fast |
+| `ideabucket-core` unit tests (39) | text validation and limits, legacy-entry normalization, bucket naming/dedup/color-hash vectors, index ordering, search over text and buckets, seeded dip, atomic save round-trip, corrupt-payload quarantine (JSON and non-array), junk-entry filtering, exact JSON/Markdown export shapes, import replace/merge/dedup and error cases |
+| `ideabucket-server` unit tests (13) | glass geometry (`levelY`, surface, blob formulas), date/age lines, URL encoding, flash-code resolution, poisoned-mutex recovery |
+| `ideabucket-server/tests/integration.rs` (25) | every route's happy and failure paths driven through the real router in-process: capture (empty, too-long, filing, active-bucket fallback), XSS escaping, search and bucket filters, idea page + edit flows, delete, bucket delete (unfiles but never deletes), dip (pool-aware), export attachments, v1-export import (merge/replace/failures), flash codes, corrupt-store boot |
 
-The suite runs on every push in the `web` job of the Build workflow. `tests/helpers/boot.js` loads `index.html` with stubs for `confirm`/`prompt`/clipboard/downloads so flows can be driven deterministically.
+Quality gates in CI: `cargo fmt --check` and `cargo clippy -D warnings`
+(`unsafe` is forbidden workspace-wide) alongside the test run. The legacy v1
+suite (`npm test` in `legacy/`) and the APK pipeline keep running in their own
+jobs, unchanged.
+
+## Migrating from the browser app (v1)
+
+1. Open the v1 app, press **⬇ JSON**, and save `idea-bucket.json`.
+2. Start the server, expand **⬆ Import a JSON export** on the main page.
+3. Paste the file, choose **merge** (keep existing) or **replace**, import.
+
+Ideas come across with ids, colors, dates, buckets and source lines intact;
+entries that are incomplete (bare `{"text": …}` from old exports) are
+normalized on the way in.
+
+## Legacy v1 (web + Android APK)
+
+`legacy/` contains the frozen v1.2.0 app exactly as it shipped: the
+single-file `index.html`, the Capacitor Android project, the jsdom suite
+(80 tests) and the build/check scripts. `legacy/README.md` (see the v1
+sections below in git history) documents the APK pipeline; CI still builds
+the APK on every push. The v1 release pipeline fires on `v1.*` tags only —
+Rust releases are ordinary tags on this repository.
+
+## Repository layout
+
+- `Cargo.toml` — workspace: shared dependencies, lints (`unsafe` forbidden), release profile (thin LTO, stripped)
+- `crates/ideabucket-core/` — domain library, no framework dependencies
+- `crates/ideabucket-server/` — the web binary (`ideabucket-server`)
+- `docs/rust-rewrite-plan.md` — the rewrite plan and feature-parity table
+- `legacy/` — frozen v1 web/Android app
+- `.github/workflows/build.yml` — Rust + legacy web + APK jobs on every push
+- `.github/workflows/release.yml` — legacy APK releases for `v1.*` tags
 
 ## Tech
 
-- Web: single-file HTML/CSS/JS, no framework
-- Android: Capacitor 8, with `@capacitor/filesystem` and `@capacitor/share` for exports on Android
-- Build: Gradle with AGP 8.13, target SDK 35, min SDK 24
+- Rust (stable), edition 2021, `unsafe` forbidden workspace-wide
+- Server: axum 0.8, tokio, askama (compile-time templates with auto-escaping)
+- Core: serde/serde_json, uuid, rand, chrono — nothing else
+- Storage: one JSON file, atomic writes (temp + rename), quarantine on corruption

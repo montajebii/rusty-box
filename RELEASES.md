@@ -13,6 +13,80 @@ Every release records:
 
 The version is kept consistent across `package.json` and the release build. When a release is cut, `package.json` carries `"version": "<same>"` and the release APK is built with `-PversionName=<same>`. The `versionCode` must increase on every release — Android will not upgrade an installed app otherwise.
 
+## v2.0.0 — 2026-10-25
+
+The pure-Rust rewrite. **Breaking change:** the app is no longer a single
+HTML file wrapped in Capacitor; it is a Rust web server with a fully
+server-rendered, zero-JavaScript UI.
+
+### What changed
+
+- The entire application is rewritten in Rust as a Cargo workspace:
+  `ideabucket-core` (domain: model, buckets, store, search, dip, exports,
+  import) and `ideabucket-server` (axum + askama). No JavaScript ships to
+  the client at all — v1's composer, drawer, idea page, toasts and
+  animations are replaced by forms, links, CSS animations and flash toasts.
+- Data stays drop-in compatible: the store file and the JSON export keep
+  v1's exact payload shape (`id/text/color/created/lastViewed/buckets/source`,
+  camelCase), so a v1 browser export imports into v2 and a v2 export imports
+  back into v1.
+- **New: JSON import** (merge or replace). This doubles as the official
+  browser → server migration path: paste a v1 `idea-bucket.json` export.
+- Bucket colors, glass liquid level, blob layout and the Markdown export
+  format are exact ports of v1's formulas; dates render locale-neutral as
+  ISO `YYYY-MM-DD` instead of the browser locale's short date.
+- Storage moves from localStorage to a JSON file with atomic saves
+  (temp + rename). A corrupt file is quarantined as
+  `<file>.corrupt-backup`, exactly like v1's corrupt-payload quarantine.
+- Every capture/edit/delete/bucket action is validated server-side with the
+  same rules v1 enforced in the UI: non-empty text, 280-char capture limit,
+  2000-char edit limit, bucket names cleaned to 24 chars and deduped.
+- Deleting a bucket still only unfiles its ideas — never deletes them.
+- The v1 web app and Android wrapper are frozen under `legacy/`, still
+  built by CI; the legacy APK release pipeline now fires on `v1.*` tags only.
+- The test suite is rebuilt for Rust: 77 tests across both crates
+  (39 core unit + 13 server unit + 25 HTTP integration driving the real
+  router). The suite found and fixed a real bug on day one: axum's built-in
+  `Form` extractor (serde_urlencoded) rejects single-value `Vec<String>`
+  fields, which would have broken every one-bucket filing; forms now parse
+  with `serde_html_form`.
+
+### Why
+
+- The repository is called rusty-box; the app finally matches.
+- One small Rust binary is deployable anywhere (a phone via termux, a
+  Raspberry Pi, any VPS) without the Android SDK/Gradle/JDK toolchain that
+  v1's APK pipeline required.
+- The core library is UI-agnostic, which keeps future shells (desktop or
+  mobile GUIs reusing the same domain) cheap to add.
+- Server-rendered HTML with compile-time template escaping closes the class
+  of XSS bugs the jsdom suite found in v1's hand-rolled `escapeHtml`.
+
+### Migration notes
+
+- From the browser app: export JSON (⬇ button), paste it into the new
+  import box on the v2 main page, choose merge or replace. Done.
+- The Android APK for v2 does not exist; v1 APKs remain installable and
+  buildable from `legacy/`. The data inside a v1 install (localStorage) is
+  exported through v1's own ⬇ JSON button first.
+- Server config: `IDEABUCKET_HOST` (default `127.0.0.1` — there is no auth,
+  keep it local), `IDEABUCKET_PORT` (default `8088`),
+  `IDEABUCKET_DATA` (default `data/idea-bucket.json`).
+
+### Version
+
+- Workspace version: `2.0.0` (in `Cargo.toml` `[workspace.package]`,
+  inherited by both crates).
+- No `versionCode` — that is an Android concept and applies to legacy
+  releases only.
+
+### Commits
+
+- `4cf08b6` — docs: add pure-Rust rewrite plan for v2.0.0
+- `1779d91` — chore: freeze v1 web/Android app under legacy/ and repoint CI
+- `2d189ba` — feat: ideabucket-core — v1-compatible domain model, store, exporters, import
+- `fd7deeb` — feat: ideabucket-server — zero-JS axum UI, ported v1 design, full HTTP test suite
+
 ## v1.2.0 — 2026-10-18
 
 Capture, inbox, and source-aware ideas.

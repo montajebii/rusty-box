@@ -127,9 +127,10 @@ Key decisions:
    with the HTTP integration suite green.
 6. **Gate**: `fmt --check`, `clippy -D warnings`, `cargo test` — fix every
    finding until the whole workspace is clean.
-7. **CI + docs**: new `rust.yml` workflow (fmt/clippy/test/build with dep
-   caching); README rewritten for v2 with a legacy section; `RELEASES.md`
-   records v2.0.0 as a breaking change with migration notes.
+7. **CI + docs**: a Rust job in `build.yml` (fmt/clippy/test with dep
+   caching) beside the legacy jobs; README rewritten for v2 with a legacy
+   section; `RELEASES.md` records v2.0.0 as a breaking change with migration
+   notes.
 8. **Commit history**: one conventional commit per logical step.
 9. **Push + PR**: push the branch with ephemeral credentials, open the pull
    request with a full description (architecture, parity table, migration),
