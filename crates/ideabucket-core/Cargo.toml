@@ -1,0 +1,20 @@
+[package]
+name = "ideabucket-core"
+description = "Domain model and logic for The Idea Bucket: ideas, buckets, storage, search, export, import"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+rand.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true
