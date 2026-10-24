@@ -74,7 +74,9 @@ LABEL=$(grep -oE "^application-label:'[^']*'" <<<"$BADGE" | head -1)
 MINSDK_RE="^(sdkVersion|minSdkVersion):'24'"
 MINSDK=$(grep -oE "^(sdkVersion|minSdkVersion):'[^']*'" <<<"$BADGE" | head -1)
 TARGETSDK=$(grep -oE "^targetSdkVersion:'[^']*'" <<<"$BADGE" | head -1)
-grep -q "^package: name='com.ideabucket.app'" <<<"$BADGE" && ok "package com.ideabucket.app" \
+# The debug build type adds an .debug applicationId suffix by design, and this
+# script's default input is the debug APK — accept both, reject everything else.
+grep -qE "^package: name='com\.ideabucket\.app(\.debug)?'" <<<"$BADGE" && ok "package com.ideabucket.app(.debug)" \
   || bad "wrong/missing package — badging says ${PKG:-<no package line>}"
 grep -qE "application-label:['\"](By the way|راستی|Idea Bucket)['\"]" <<<"$BADGE" && ok "label matches" \
   || bad "wrong/missing label — badging says ${LABEL:-<no application-label line>}"

@@ -9,7 +9,10 @@ android {
 
     defaultConfig {
         applicationId "com.ideabucket.app"
-        minSdk 25
+        // variables.gradle is the source of truth (24, matching
+        // AndroidManifest.xml and check-apk.sh); the hardcoded 25 here had
+        // drifted away from both.
+        minSdk rootProject.ext.minSdkVersion
         targetSdk 35
         versionCode buildVersionCode
         versionName buildVersionName
@@ -64,6 +67,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'com.google.android.material:material:1.12.0'
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.14.1'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
 }
