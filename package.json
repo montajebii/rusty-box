@@ -3,7 +3,7 @@
   "version": "1.2.0",
   "description": "By the way (راستی) - catch ideas in Name - Description buckets",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test \"tests/**/*.test.js\"",
     "build": "node -e \"const fs=require('fs');fs.rmSync('www',{recursive:true,force:true});fs.mkdirSync('www');fs.copyFileSync('index.html','www/index.html');console.log('www/ ready')\"",
     "cap:sync": "npm run build && npx cap sync android",
     "cap:open": "npx cap open android"
@@ -14,5 +14,9 @@
     "@capacitor/core": "^8.5.2",
     "@capacitor/filesystem": "8.1.5",
     "@capacitor/share": "8.0.3"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.3",
+    "yaml": "^2.9.1"
   }
 }

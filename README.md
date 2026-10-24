@@ -105,6 +105,28 @@ When in doubt about whether a machine can build, run this first:
 
 The app ships its name in Persian too (`راستی`). Keep any locale additions consistent with what `check-apk.sh` expects (it checks for the Persian label in the APK).
 
+## Tests
+
+The web app has a full jsdom test suite (no browser needed) — the real `index.html` is booted in a simulated DOM and driven end to end:
+
+```bash
+npm test          # node --test "tests/**/*.test.js"
+```
+
+| Suite | What it covers |
+|---|---|
+| `tests/static.test.js` | structure: inline script parses, every `$('id')` target exists, no duplicate ids, workflows are valid YAML, `bash -n` on all scripts |
+| `tests/storage.test.js` | persistence: round-trips, junk filtering, legacy-entry normalization, corrupt-JSON quarantine, quota-failure toast |
+| `tests/buckets.test.js` | bucket model: naming rules, case-insensitive reuse, multi-bucket ideas, pending ("file into") flow, bucket deletion |
+| `tests/composer.test.js` | capture: drops via button/Enter, empty rejection, glass level/counter/drip, drop animation, source-line arming |
+| `tests/drawer.test.js` | ideas drawer: open/close/a11y, search over text and buckets, empty states, filter chips |
+| `tests/idea-page.test.js` | idea page: edit flow, draft bucket toggles, close guard (nothing unsaved is silently lost), delete, share fallback, Escape scoping |
+| `tests/export.test.js` | JSON + Markdown export payloads (sections, "also in" notes, unfiled) |
+| `tests/route.test.js` | deep links `/idea/<id>`, unknown-id bounce |
+| `tests/scripts.test.js` | `build-env.sh` toolchain contract, `make-release.sh` semver guard, `check-apk.sh` fail-fast |
+
+The suite runs on every push in the `web` job of the Build workflow. `tests/helpers/boot.js` loads `index.html` with stubs for `confirm`/`prompt`/clipboard/downloads so flows can be driven deterministically.
+
 ## Tech
 
 - Web: single-file HTML/CSS/JS, no framework

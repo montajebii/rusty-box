@@ -60,6 +60,9 @@ jobs:
           node --check "$RUNNER_TEMP/inline.js"
           echo "✔ inline JavaScript parses"
 
+      - name: Unit tests (jsdom)
+        run: npm test
+
   apk:
     name: APK + pre-release checks
     needs: web

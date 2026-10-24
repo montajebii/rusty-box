@@ -975,12 +975,20 @@
   const CapShare = NATIVE ? capPlugin('Share') : null;
 
   // ---------- storage ----------
+  // If the stored payload is corrupt (truncated write, quota damage, manual edit),
+  // quarantine it under a backup key before starting fresh — the next save would
+  // otherwise destroy the user's data with no way back.
+  const quarantineStorage = (rawData) => {
+    try { localStorage.setItem(KEY + '.corrupt-backup', String(rawData)); } catch { /* best effort */ }
+  };
   const load = () => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      const data = raw ? JSON.parse(raw) : [];
-      return Array.isArray(data) ? data.filter(i => i && typeof i.text === 'string').map(normalizeIdea) : [];
-    } catch { return []; }
+    let raw = null;
+    try { raw = localStorage.getItem(KEY); } catch { return []; }
+    if (!raw) return [];
+    let data;
+    try { data = JSON.parse(raw); } catch { quarantineStorage(raw); return []; }
+    if (!Array.isArray(data)) { quarantineStorage(raw); return []; }
+    return data.filter(i => i && typeof i.text === 'string').map(normalizeIdea);
   };
   const save = (ideas) => {
     try { localStorage.setItem(KEY, JSON.stringify(ideas)); }
@@ -1010,6 +1018,12 @@
       if (name && !kept.includes(name)) kept.push(name);
     }
     idea.buckets = kept;
+    // legacy or hand-edited entries can miss fields the UI assumes — fill defaults
+    // so ids stay deletable, dates render, and blob colours never read "undefined"
+    if (typeof idea.id !== 'string' || !idea.id) idea.id = newIdeaId();
+    if (typeof idea.color !== 'string' || !/^#[0-9a-fA-F]{3,8}$/.test(idea.color)) idea.color = bucketColor(idea.id);
+    if (!Number.isFinite(idea.created)) idea.created = Date.now();
+    if (!Number.isFinite(idea.lastViewed)) idea.lastViewed = idea.created;
     return idea;
   }
   function bucketIndex() {
@@ -1039,6 +1053,9 @@
     return `<${tag} class="${cls}"${attrs} style="--chip-color:${bucketColor(name)}"><span class="chip-dot"></span><span class="chip-label">${escapeHtml(name)}</span>${count}</${tag}>`;
   }
 
+  const newIdeaId = () =>
+    (window.crypto && typeof crypto.randomUUID === 'function') ? crypto.randomUUID() : String(Date.now() + Math.random());
+
   let ideas = load();
 
   // The open idea page's keyboard-fit hook. Registered once (see the visualViewport
@@ -1056,12 +1073,24 @@
         composerBuckets = $('composerBuckets');
 
   // ---------- toast ----------
-  let toastTimer;
+  // Messages queue instead of replacing each other: a storage-full warning raised
+  // inside save() must not be instantly clobbered by the action's own toast.
+  let toastTimer = null;
+  let toastQueue = [];
   function showToast(msg) {
-    toast.textContent = msg;
-    toast.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+    toastQueue.push(msg);
+    if (toastQueue.length > 1) return;   // a message is already on stage
+    const show = () => {
+      if (!toastQueue.length) return;
+      toast.textContent = toastQueue[0];
+      toast.classList.add('show');
+      toastTimer = setTimeout(() => {
+        toastQueue.shift();
+        toast.classList.remove('show');
+        setTimeout(() => { if (toastQueue.length) show(); }, 120);
+      }, 2600);
+    };
+    show();
   }
 
   // ---------- buckets (view) ----------
@@ -1198,7 +1227,8 @@
   // ---------- drop animation ----------
   function animateDrop(color) {
     const rect = stage.getBoundingClientRect();
-    const targetTop = Math.min(rect.top + rect.height * 0.55, (window.visualViewport || {}).height - 6);
+    const vv = window.visualViewport;
+    const targetTop = Math.min(rect.top + rect.height * 0.55, (vv ? vv.height : window.innerHeight) - 6);
     const blob = document.createElement('div');
     blob.className = 'floating-blob';
     blob.style.left = (rect.left + rect.width / 2 - 40) + 'px';
@@ -1255,6 +1285,11 @@
     return '';
   };
 
+  // The armed source: whatever the visible "from: …" line shows is exactly what the
+  // next dropped idea carries. Typing disarms it — so a cancelled source line can
+  // never resurrect itself from the page selection at drop time.
+  let _sourceDraft = null;
+
   // When text is selected before the user taps the input, show a small “from: …" line
   // above the compose row so the source is visible before capture, and the user can cancel
   // it if it is not actually useful.
@@ -1269,13 +1304,13 @@
     const text = input.value.trim();
     if (!text) return;
     const idea = {
-      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+      id: newIdeaId(),
       text,
       color: PALETTE[Math.floor(Math.random() * PALETTE.length)],
       created: Date.now(),
       lastViewed: Date.now(),
       buckets: [...pendingBuckets],
-      source: _initialSelection() || ''
+      source: _sourceDraft || ''
     };
     if (idea.buckets.length === 0 && activeBucket) {
       idea.buckets.push(activeBucket);
@@ -1390,7 +1425,7 @@
       return;
     }
     list.innerHTML = filtered.map(i => `
-      <div class="idea-card" data-id="${i.id}">
+      <div class="idea-card" data-id="${escapeHtml(String(i.id))}">
         <div class="idea-card-head" role="button" tabindex="0" aria-label="Open idea" data-open>
           <p>${escapeHtml(truncate(i.text, 140))}</p>
           <div class="idea-meta">
@@ -1414,10 +1449,12 @@
   }
 
   function _clearSource() {
+    _sourceDraft = null;
     const s = $('composerSource');
     if (s) s.innerHTML = '';
   }
   function _renderSource(text) {
+    _sourceDraft = text || null;
     const s = $('composerSource');
     s.innerHTML = text ? `from: ${escapeHtml(text)}` : '';
   }
@@ -1575,24 +1612,41 @@
       setTimeout(() => {
         releaseKeyboardFit();
         overlay.remove();
-        document.body.classList.remove('app--modal-open');
+        // the drawer underneath may still be open — only then is the body unlocked
+        if (!drawer.classList.contains('open')) document.body.classList.remove('app--modal-open');
       }, 280);
     };
 
     function closeWithGuard() {
-      let discardBucketChanges = false;
-      if (editing && draftBuckets.length > 0 && draftBuckets.length !== ideaBuckets(idea).length) {
-        if (!window.confirm('File this idea before closing?')) {
-          discardBucketChanges = true;
+      if (editing) {
+        const nextText = editArea ? editArea.value.trim() : '';
+        const textChanged = !!nextText && nextText !== idea.text;
+        const before = ideaBuckets(idea);
+        const bucketsChanged = draftBuckets.length !== before.length ||
+          draftBuckets.some(b => !before.includes(b));
+        if (textChanged || bucketsChanged) {
+          // one clear question covering both drafts; answering either way must never
+          // silently lose the work (the old guard missed equal-length swaps and
+          // empty drafts, and never saved the buckets it had just confirmed)
+          const saveIt = window.confirm(textChanged
+            ? 'Save your changes before closing?'
+            : 'File this idea before closing?');
+          if (saveIt) {
+            if (nextText) {
+              commitEdit();          // saves text + draft buckets, then paints view mode
+            } else {
+              // text left empty (or untouched with only whitespace): keep the old
+              // text, still file the confirmed bucket changes
+              idea.buckets = [...draftBuckets];
+              idea.edited = Date.now();
+              idea.lastViewed = Date.now();
+              save(ideas);
+              refreshBuckets();
+              exitEdit();
+              showToast('🗂 Buckets updated');
+            }
+          }
         }
-      }
-      if (editing && editArea && editArea.value.trim() && editArea.value !== idea.text) {
-        if (!window.confirm('Discard your unsaved edit?')) return;
-      }
-      if (discardBucketChanges) {
-        draftBuckets = [...ideaBuckets(idea)];
-        editing = false;
-        paint();
       }
       close();
     }
