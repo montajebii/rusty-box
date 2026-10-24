@@ -86,3 +86,23 @@ Stage Summary:
 - feat/rust-rewrite ready for review: pure-Rust v2.0.0 with 77 green tests, v1 frozen under legacy/ and still built by CI
 - PR: https://github.com/montajebii/rusty-box/pull/1 (merge left to the maintainer)
 - The exposed PAT was reused for this push because no new token was provided - it must be revoked/rotated
+
+---
+Task ID: 4 (continued) — CI bring-up on the PR
+Agent: Z.ai main agent (GLM)
+Task: best-practices GitHub flow for the Rust rewrite: push, PR, green CI
+
+Work Log:
+- Pushed feat/rust-rewrite (ephemeral credential helper; remote URL stays credential-free) and opened PR #1 with a full description (architecture, parity table, migration, reviewer notes)
+- Uncovered a platform quirk: commits landed on local main while the branch ref lagged — re-pointed the branch, pushed 883844b, reset local main to origin/main (PR head updated, 109 files +7424/-114)
+- CI iterations (worktree .wt-ci used because the platform keeps resetting the main checkout):
+  * Rust job: GREEN on the first run (fmt, clippy -D warnings, 77 tests)
+  * legacy web job: fixed setup-node cache-dependency-path (lockfile moved to legacy/) + workflow paths in legacy static test -> GREEN (80/80)
+  * legacy APK job: fixed 8 inherited bugs — JDK probe -> setup-java; build-apk.sh dev-machine pins -> fallbacks; missing `apply plugin com.android.application`; capacitor-android@6.3.0 Maven artifact -> project dep; support-compat 28 manifest collision -> removed; invalid android:statusBarIconVisibility attr -> removed; gate minSdk 25->24 from variables.gradle; gate now accepts the .debug applicationId suffix; Robolectric added to the test classpath; per-test failures now printed from the JUnit XML (gradle -q hid them; the gate verdict now comes from the XML, not gradle's exit code)
+- Result: APK builds on CI for the first time in the repo's history; 7/8 gates pass; gate 1 (Robolectric theme tests) still red — first execution ever of those tests, remaining failures documented with real traces in the CI log
+- Posted PR comment with the complete CI status and the legacy-fix list
+
+Stage Summary:
+- PR #1 = the complete v2.0.0 rewrite + 8 legacy-pipeline fixes, 2 of 3 CI jobs fully green, APK pipeline revived from dead to 7/8 gates
+- Known follow-up: Robolectric theme tests (gate 1) — traces now visible in CI for the next session
+- Rotation reminder: the reused PAT must still be revoked/rotated by the user
