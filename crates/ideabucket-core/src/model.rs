@@ -244,7 +244,15 @@ mod tests {
         let mut idea = new_idea("t".into(), vec!["B".into()], "");
         idea.edited = Some(123);
         let v: serde_json::Value = serde_json::to_value(&idea).unwrap();
-        for key in ["id", "text", "color", "created", "lastViewed", "buckets", "source"] {
+        for key in [
+            "id",
+            "text",
+            "color",
+            "created",
+            "lastViewed",
+            "buckets",
+            "source",
+        ] {
             assert!(v.get(key).is_some(), "missing {key}");
         }
         assert!(v.get("last_viewed").is_none());

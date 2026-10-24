@@ -20,6 +20,9 @@ pub mod model;
 pub mod store;
 
 pub use buckets::{bucket_color, bucket_index, clean_bucket_name, BucketEntry};
-pub use import::{import, ImportMode, ImportError, ImportReport};
-pub use model::{new_idea, normalize_idea, Idea, TextError, CAPTURE_MAX, EDIT_MAX};
+pub use export::{export_json, export_markdown};
+pub use import::{import, ImportError, ImportMode, ImportReport};
+pub use model::{
+    new_idea, normalize_idea, take_chars, validate_text, Idea, TextError, CAPTURE_MAX, EDIT_MAX,
+};
 pub use store::{EditError, EditReport, Filter, Store};

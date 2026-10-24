@@ -76,7 +76,11 @@ mod tests {
     use super::*;
 
     fn idea(buckets: &[&str]) -> Idea {
-        let mut i = crate::model::new_idea("t".into(), buckets.iter().map(|s| s.to_string()).collect(), "");
+        let mut i = crate::model::new_idea(
+            "t".into(),
+            buckets.iter().map(|s| s.to_string()).collect(),
+            "",
+        );
         crate::model::normalize_idea(&mut i);
         i
     }
@@ -102,7 +106,7 @@ mod tests {
         // "Work": 87 -> 2808 -> 7378 -> 9419;  9419 % 6 == 5
         assert_eq!(bucket_color("Work"), "#6bc7d6");
         assert_eq!(bucket_color(""), "#f0b429"); // h stays 0
-        // stable: same name, same color
+                                                 // stable: same name, same color
         assert_eq!(bucket_color("reading list"), bucket_color("reading list"));
     }
 
@@ -118,9 +122,18 @@ mod tests {
         assert_eq!(
             idx,
             vec![
-                BucketEntry { name: "Side".into(), count: 2 },
-                BucketEntry { name: "Work".into(), count: 1 },
-                BucketEntry { name: "work".into(), count: 1 },
+                BucketEntry {
+                    name: "Side".into(),
+                    count: 2
+                },
+                BucketEntry {
+                    name: "Work".into(),
+                    count: 1
+                },
+                BucketEntry {
+                    name: "work".into(),
+                    count: 1
+                },
             ]
         );
         // Work before work: count tie broken alphabetically, case-insensitively

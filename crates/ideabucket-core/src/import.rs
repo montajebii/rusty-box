@@ -140,14 +140,22 @@ mod tests {
         assert_eq!(report.imported, 1, "only the genuinely new idea is merged");
         assert_eq!(ideas.len(), before + 1);
         assert_eq!(ideas.last().unwrap().text, "genuinely new");
-        assert_eq!(ideas[0].text, "from the browser", "existing ideas stay first");
+        assert_eq!(
+            ideas[0].text, "from the browser",
+            "existing ideas stay first"
+        );
     }
 
     #[test]
     fn merge_into_populated_store_keeps_existing_order() {
         let mut ideas = fresh();
         import(&mut ideas, r#"[{"text": "existing"}]"#, ImportMode::Replace).unwrap();
-        import(&mut ideas, r#"[{"text": "new-1"}, {"text": "new-2"}]"#, ImportMode::Merge).unwrap();
+        import(
+            &mut ideas,
+            r#"[{"text": "new-1"}, {"text": "new-2"}]"#,
+            ImportMode::Merge,
+        )
+        .unwrap();
         let texts: Vec<&str> = ideas.iter().map(|i| i.text.as_str()).collect();
         assert_eq!(texts, vec!["existing", "new-1", "new-2"]);
     }
@@ -155,7 +163,10 @@ mod tests {
     #[test]
     fn rejects_non_json_and_non_array_payloads() {
         let mut ideas = fresh();
-        assert_eq!(import(&mut ideas, "not json", ImportMode::Replace), Err(ImportError::NotJson));
+        assert_eq!(
+            import(&mut ideas, "not json", ImportMode::Replace),
+            Err(ImportError::NotJson)
+        );
         assert_eq!(
             import(&mut ideas, r#"{"just": "an object"}"#, ImportMode::Replace),
             Err(ImportError::NotAnArray)

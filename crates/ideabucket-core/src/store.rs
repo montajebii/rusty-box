@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use rand::Rng;
 
 use crate::buckets::{clean_bucket_name, in_bucket};
-use crate::model::{normalize_idea, validate_text, new_idea, now_ms, Idea, CAPTURE_MAX, EDIT_MAX};
+use crate::model::{new_idea, normalize_idea, now_ms, validate_text, Idea, CAPTURE_MAX, EDIT_MAX};
 
 /// Which ideas a view (the glass, the list, a dip) looks at.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -27,7 +27,10 @@ impl Filter {
     }
 
     pub fn with_bucket(name: impl Into<String>) -> Self {
-        Filter { bucket: Some(name.into()), q: None }
+        Filter {
+            bucket: Some(name.into()),
+            q: None,
+        }
     }
 }
 
@@ -66,7 +69,10 @@ pub struct Store {
 impl Store {
     /// An empty store at `path` (no file is touched until `save`).
     pub fn empty(path: impl Into<PathBuf>) -> Self {
-        Store { ideas: Vec::new(), path: path.into() }
+        Store {
+            ideas: Vec::new(),
+            path: path.into(),
+        }
     }
 
     /// Load the store from disk.
@@ -175,7 +181,11 @@ impl Store {
         text: &str,
         buckets: &[String],
     ) -> Result<EditReport, EditError> {
-        let idea = self.ideas.iter_mut().find(|i| i.id == id).ok_or(EditError::NotFound)?;
+        let idea = self
+            .ideas
+            .iter_mut()
+            .find(|i| i.id == id)
+            .ok_or(EditError::NotFound)?;
         let text = validate_text(text, EDIT_MAX).map_err(EditError::Text)?;
 
         let mut kept: Vec<String> = Vec::with_capacity(buckets.len());
@@ -189,7 +199,10 @@ impl Store {
         let text_changed = text != idea.text;
         let buckets_changed = kept != idea.buckets;
         if !text_changed && !buckets_changed {
-            return Ok(EditReport { text_changed: false, buckets_changed: false });
+            return Ok(EditReport {
+                text_changed: false,
+                buckets_changed: false,
+            });
         }
 
         let now = now_ms();
@@ -197,7 +210,10 @@ impl Store {
         idea.buckets = kept;
         idea.edited = Some(now);
         idea.last_viewed = now;
-        Ok(EditReport { text_changed, buckets_changed })
+        Ok(EditReport {
+            text_changed,
+            buckets_changed,
+        })
     }
 
     /// Delete an idea by id; returns whether it existed.
@@ -311,7 +327,10 @@ mod tests {
         store.add("second", &[], "").unwrap();
         assert_eq!(store.ideas[0].text, "second");
         assert_eq!(store.ideas[1].text, "first");
-        assert!(matches!(store.add("   ", &[], ""), Err(crate::model::TextError::Empty)));
+        assert!(matches!(
+            store.add("   ", &[], ""),
+            Err(crate::model::TextError::Empty)
+        ));
     }
 
     #[test]
@@ -334,9 +353,14 @@ mod tests {
 
         let no_change = store.edit(&id, "hello", &["Work".into()]).unwrap();
         assert!(!no_change.text_changed && !no_change.buckets_changed);
-        assert!(store.ideas[0].edited.is_none(), "no-op edit must not mark edited");
+        assert!(
+            store.ideas[0].edited.is_none(),
+            "no-op edit must not mark edited"
+        );
 
-        let report = store.edit(&id, "hi", &["Work".into(), "Side".into()]).unwrap();
+        let report = store
+            .edit(&id, "hi", &["Work".into(), "Side".into()])
+            .unwrap();
         assert!(report.text_changed && report.buckets_changed);
         assert_eq!(store.ideas[0].text, "hi");
         assert_eq!(store.ideas[0].buckets, vec!["Work", "Side"]);
@@ -396,15 +420,24 @@ mod tests {
         assert_eq!(work.len(), 1);
         assert_eq!(work[0].text, "Rust pattern");
 
-        let q = store.visible(&Filter { bucket: None, q: Some("RUST".into()) });
+        let q = store.visible(&Filter {
+            bucket: None,
+            q: Some("RUST".into()),
+        });
         assert_eq!(q.len(), 2, "matches text case-insensitively");
 
         // a query can also find ideas by bucket name (v1 searches buckets too)
-        let by_bucket_name = store.visible(&Filter { bucket: None, q: Some("side".into()) });
+        let by_bucket_name = store.visible(&Filter {
+            bucket: None,
+            q: Some("side".into()),
+        });
         assert_eq!(by_bucket_name.len(), 1);
         assert_eq!(by_bucket_name[0].text, "coffee thought");
 
-        let both = store.visible(&Filter { bucket: Some("Work".into()), q: Some("coffee".into()) });
+        let both = store.visible(&Filter {
+            bucket: Some("Work".into()),
+            q: Some("coffee".into()),
+        });
         assert!(both.is_empty());
     }
 
@@ -457,7 +490,10 @@ mod tests {
         let store = Store::load(&path).unwrap();
         assert!(store.ideas.is_empty());
         let backup = dir.path().join("idea-bucket.json.corrupt-backup");
-        assert_eq!(std::fs::read_to_string(&backup).unwrap(), "{not json at all");
+        assert_eq!(
+            std::fs::read_to_string(&backup).unwrap(),
+            "{not json at all"
+        );
         assert!(!path.exists(), "the corrupt file must be out of the way");
     }
 
@@ -490,7 +526,10 @@ mod tests {
         assert_eq!(store.ideas.len(), 1);
         assert_eq!(store.ideas[0].text, "keep me");
         assert_eq!(store.ideas[0].id, "x");
-        assert!(store.ideas[0].last_viewed > 0, "normalized dates are filled");
+        assert!(
+            store.ideas[0].last_viewed > 0,
+            "normalized dates are filled"
+        );
     }
 
     #[test]

@@ -7,7 +7,7 @@
 
 use chrono::{DateTime, Local};
 
-use crate::buckets::{bucket_index, in_bucket, idea_buckets};
+use crate::buckets::{bucket_index, idea_buckets, in_bucket};
 use crate::model::Idea;
 
 /// v1's `exportFile('idea-bucket.json', JSON.stringify(ideas, null, 2))`.
@@ -24,7 +24,12 @@ fn entry_date(created_ms: i64) -> String {
 }
 
 fn entry(idea: &Idea, suffix: &str) -> String {
-    format!("- **{}** — {}{}", entry_date(idea.created), idea.text, suffix)
+    format!(
+        "- **{}** — {}{}",
+        entry_date(idea.created),
+        idea.text,
+        suffix
+    )
 }
 
 /// v1's Markdown export: one `##` section per bucket (ideas filed in several
@@ -57,7 +62,10 @@ pub fn export_markdown(ideas: &[Idea]) -> String {
             lines.push(String::new());
         }
 
-        let unfiled: Vec<&Idea> = ideas.iter().filter(|i| idea_buckets(i).is_empty()).collect();
+        let unfiled: Vec<&Idea> = ideas
+            .iter()
+            .filter(|i| idea_buckets(i).is_empty())
+            .collect();
         if !unfiled.is_empty() {
             lines.push(format!("## Unfiled ({})", unfiled.len()));
             lines.push(String::new());
@@ -108,7 +116,10 @@ mod tests {
         assert!(md.starts_with("# The Idea Bucket\n\n## Ideas (2)\n\n"));
         assert!(md.contains("— one"));
         assert!(md.contains("— two"));
-        assert!(!md.contains("## Unfiled"), "no buckets section means no Unfiled section");
+        assert!(
+            !md.contains("## Unfiled"),
+            "no buckets section means no Unfiled section"
+        );
     }
 
     #[test]
@@ -140,7 +151,10 @@ mod tests {
 
     #[test]
     fn markdown_export_matches_v1_line_shapes_exactly() {
-        let ideas = vec![fixed_idea("solo", &["Work"], T), fixed_idea("loose", &[], T)];
+        let ideas = vec![
+            fixed_idea("solo", &["Work"], T),
+            fixed_idea("loose", &[], T),
+        ];
         let md = export_markdown(&ideas);
         for line in md.lines().filter(|l| l.starts_with("- **")) {
             // `- **YYYY-MM-DD** — text` (optionally with the also-in suffix)
