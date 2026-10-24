@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block content %}
+<header>
+  <h1>The Idea Bucket <span class="tilde">~</span></h1>
+  <p class="tagline">drop a thought in. dip for old ones.</p>
+</header>
+
+<div class="stage{% if has_ideas %} has-ideas{% endif %}">
+  <svg viewBox="0 0 400 360" aria-label="The idea bucket" role="img">
+    <defs>
+      <clipPath id="bucketClip">
+        <path d="M118,130 L282,130 L262,330 L138,330 Z"/>
+      </clipPath>
+      <linearGradient id="liquidGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#f0b429" stop-opacity="0.9"/>
+        <stop offset="100%" stop-color="#b97e14" stop-opacity="0.95"/>
+      </linearGradient>
+      <linearGradient id="metalGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#2a3350"/>
+        <stop offset="50%" stop-color="#3d4a73"/>
+        <stop offset="100%" stop-color="#232b45"/>
+      </linearGradient>
+      <radialGradient id="rimGlow" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0%" stop-color="#f0b429" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#f0b429" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+
+    <ellipse cx="200" cy="240" rx="150" ry="120" fill="url(#rimGlow)"/>
+
+    <g clip-path="url(#bucketClip)">
+      <rect id="liquid" x="110" y="{{ level_y }}" width="180" height="220" fill="url(#liquidGrad)"/>
+      <ellipse id="surface" cx="200" cy="{{ level_y }}" rx="{{ surface_rx }}" ry="8" fill="#ffd66b" opacity="0.55"/>
+      <g id="blobLayer">
+        {% for b in blobs %}
+        <circle cx="{{ b.cx }}" cy="{{ b.cy }}" r="{{ b.r }}" fill="{{ b.color }}" opacity="0.85"/>
+        {% endfor %}
+        {% if !more_text.is_empty() %}
+        <text x="200" y="{{ level_y + 60 }}" text-anchor="middle" fill="rgba(232,236,248,0.5)" font-size="11">{{ more_text }}</text>
+        {% endif %}
+      </g>
+    </g>
+
+    <path d="M118,130 L282,130 L262,330 L138,330 Z"
+          fill="url(#metalGrad)" fill-opacity="0.35"
+          stroke="#4a5680" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M118,130 L282,130 L262,330 L138,330 Z"
+          fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-linejoin="round"/>
+    <path d="M138,140 L152,140 L146,320 L134,320 Z" fill="rgba(255,255,255,0.06)"/>
+    <ellipse cx="200" cy="130" rx="82" ry="14" fill="none" stroke="#6d7ab0" stroke-width="4"/>
+    <path class="handle" d="M120,128 C120,70 280,70 280,128"
+          fill="none" stroke="#6d7ab0" stroke-width="5" stroke-linecap="round"/>
+
+    <g id="dripHint" opacity="{% if drip_visible %}1{% else %}0{% endif %}">
+      <line x1="200" y1="56" x2="200" y2="84" stroke="#5b6a99" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="200" cy="90" r="4.5" fill="#f0b429"/>
+    </g>
+  </svg>
+</div>
+
+{# One form wraps the composer, the filing chips and the source line, so
+   pressing Enter or tapping the drop button submits all of it at once. #}
+<form method="post" action="/drop">
+  <div class="composer">
+    <input type="text" name="text" maxlength="280" autocomplete="off"
+           placeholder="An idea for later… (Enter to drop it in)" required>
+    {% if !into.is_empty() %}<input type="hidden" name="into" value="{{ into }}">{% endif %}
+    <button type="submit" title="Drop it in" aria-label="Drop idea into bucket">⌄</button>
+  </div>
+
+  <div class="composer-buckets">
+    <span class="into-label">file into</span>
+    {% if filing.is_empty() %}
+    <span class="capture-hint">no bucket yet — ideas live in the inbox until you file them</span>
+    {% endif %}
+    {% for chip in filing %}
+    <label class="chip" style="--chip-color:{{ chip.color }}">
+      <input type="checkbox" name="buckets" value="{{ chip.name }}">
+      <span class="chip-dot"></span><span class="chip-label">{{ chip.name }}</span><span class="chip-count">{{ chip.count }}</span>
+    </label>
+    {% endfor %}
+    <input class="new-bucket" type="text" name="new_bucket"
+           maxlength="24" placeholder="＋ new bucket" title="Create a bucket" autocomplete="off">
+  </div>
+
+  <div class="composer-source">
+    <input type="text" name="source" maxlength="280" autocomplete="off"
+           placeholder="from: (optional — where this idea came from)">
+  </div>
+</form>
+
+<p class="counter"><strong>{{ count }}</strong> <span>{{ count_label }}</span></p>
+
+<div class="bar">
+  <a class="bar-btn" href="{{ dip_href }}">🥄 Dip for inspiration</a>
+  <a class="bar-btn" href="#ideas">🗂 View ideas</a>
+  <a class="bar-btn" href="/export/json">⬇ JSON</a>
+  <a class="bar-btn" href="/export/md">⬇ Markdown</a>
+</div>
+
+<main class="ideas" id="ideas">
+  <div class="ideas-head">
+    <h2>Your ideas</h2>
+    <form class="search-wrap" method="get" action="/">
+      {% if !active_bucket.is_empty() %}<input type="hidden" name="bucket" value="{{ active_bucket }}">{% endif %}
+      <input type="search" name="q" value="{{ q }}" placeholder="Search ideas and buckets…" autocomplete="off">
+    </form>
+  </div>
+
+  <div class="bucket-bar">
+    {% for chip in chips %}
+    <a class="chip{% if chip.active %} active{% endif %}" style="--chip-color:{{ chip.color }}" href="{{ chip.href }}">
+      <span class="chip-dot"></span><span class="chip-label">{{ chip.name }}</span><span class="chip-count">{{ chip.count }}</span>
+    </a>
+    {% endfor %}
+  </div>
+
+  {% if !active_bucket.is_empty() %}
+  <div class="bucket-hint-row">
+    <p class="bucket-hint">showing “{{ active_bucket }}” — tap All to clear. Deleting a bucket only unfiles its ideas.</p>
+    <form method="post" action="/buckets/delete">
+      <input type="hidden" name="name" value="{{ active_bucket }}">
+      <button type="submit" class="mini-danger">Delete this bucket</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="idea-list">
+    {% if cards.is_empty() %}
+    <div class="empty-list">
+      <p>{{ empty_title }}</p>
+      {% if !empty_hint.is_empty() %}<p class="hint">{{ empty_hint }}</p>{% endif %}
+    </div>
+    {% else %}
+    {% for c in cards %}
+    <div class="idea-card">
+      <a class="idea-card-head" href="/idea/{{ c.id }}">
+        <p>{{ c.text }}</p>
+        <div class="idea-meta">
+          <span class="dot" style="background:{{ c.color }}"></span>
+          <span>{{ c.date }}{% if c.edited %} · edited{% endif %}</span>
+        </div>
+        {% if !c.buckets.is_empty() %}
+        <div class="bucket-chips">
+          {% for b in c.buckets %}
+          <span class="chip chip-static" style="--chip-color:{{ b.color }}"><span class="chip-dot"></span><span class="chip-label">{{ b.name }}</span></span>
+          {% endfor %}
+          {% if c.extra_buckets > 0 %}<span class="chip chip-static">+{{ c.extra_buckets }}</span>{% endif %}
+        </div>
+        {% endif %}
+      </a>
+      <div class="idea-actions-row">
+        <a class="icon-btn" href="/idea/{{ c.id }}?edit=1" title="Edit idea" aria-label="Edit idea">✏</a>
+        <form method="post" action="/idea/{{ c.id }}/delete" class="inline">
+          <button type="submit" class="icon-btn danger" title="Delete idea" aria-label="Delete idea">✕</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+
+  <details class="import-box">
+    <summary>⬆ Import a JSON export (migrate from the browser app)</summary>
+    <form method="post" action="/import">
+      <textarea name="payload" rows="6" placeholder='Paste the contents of idea-bucket.json — the export from v1 works as-is.'></textarea>
+      <label><input type="radio" name="mode" value="merge" checked> merge — keep existing ideas, add new ones</label>
+      <label><input type="radio" name="mode" value="replace"> replace — wipe this bucket first</label>
+      <button type="submit">Import</button>
+    </form>
+  </details>
+</main>
+
+<footer class="footer"><span class="fa">راستی</span> — The Idea Bucket v2 · pure Rust, zero JavaScript</footer>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Idea — The Idea Bucket{% endblock %}
+{% block content %}
+<main class="idea-page-static">
+  <a class="back-link" href="/">← back to the bucket</a>
+
+  <div class="idea-page-card">
+    {% if editing %}
+    <div class="idea-page-head">
+      <span class="idea-page-dot" style="background:{{ color }}"></span>
+      <span class="idea-page-tag">editing</span>
+      <a class="idea-page-close" href="/idea/{{ id }}" aria-label="Cancel editing">✕</a>
+    </div>
+    <form method="post" action="/idea/{{ id }}/edit">
+      <label class="idea-page-edit-label" for="ideaEditArea">Idea</label>
+      <textarea id="ideaEditArea" class="idea-page-edit" name="text" rows="5" maxlength="2000"
+                autocomplete="off" spellcheck="true" placeholder="Write your idea…" required>{{ text }}</textarea>
+      <div class="idea-page-count">{{ text_len }} / 2000</div>
+      <p class="edit-buckets-head">Buckets — this idea can be in several</p>
+      <div class="composer-buckets wrap">
+        {% for chip in filing %}
+        <label class="chip" style="--chip-color:{{ chip.color }}">
+          <input type="checkbox" name="buckets" value="{{ chip.name }}"{% if chip.checked %} checked{% endif %}>
+          <span class="chip-dot"></span><span class="chip-label">{{ chip.name }}</span>
+        </label>
+        {% endfor %}
+        <input class="new-bucket" type="text" name="new_bucket" maxlength="24"
+               placeholder="＋ new bucket" title="Create a bucket" autocomplete="off">
+      </div>
+      <div class="idea-page-actions" style="margin-top:1rem;">
+        <button type="submit" class="idea-page-btn save">✓ Save</button>
+        <a class="idea-page-btn" href="/idea/{{ id }}">Cancel</a>
+      </div>
+    </form>
+    {% else %}
+    <div class="idea-page-head">
+      <span class="idea-page-dot" style="background:{{ color }}"></span>
+      <span class="idea-page-tag">idea</span>
+      <a class="idea-page-close" href="/" aria-label="Close">✕</a>
+    </div>
+    <h2 class="idea-page-title">{{ text }}</h2>
+    <div class="idea-page-buckets">
+      {% if in_inbox %}
+      <span class="idea-page-nobucket">In the inbox — no bucket yet. Tap Edit to file it.</span>
+      {% else %}
+      {% for b in buckets %}
+      <span class="chip chip-static" style="--chip-color:{{ b.color }}"><span class="chip-dot"></span><span class="chip-label">{{ b.name }}</span></span>
+      {% endfor %}
+      {% endif %}
+    </div>
+    {% if !source.is_empty() %}<div class="idea-page-source">from: {{ source }}</div>{% endif %}
+    <div class="idea-page-meta">
+      <div class="idea-page-meta-cell">
+        <span class="idea-page-meta-label">Created</span>
+        <span class="idea-page-meta-val">{{ created }}</span>
+      </div>
+      <div class="idea-page-meta-cell">
+        <span class="idea-page-meta-label">{{ age }}</span>
+        <span class="idea-page-meta-val">{% if !edited_line.is_empty() %}Edited {{ edited_line }}{% endif %}</span>
+      </div>
+      <div class="idea-page-meta-cell idea-page-meta-cell--right">
+        <span class="idea-page-meta-label">ID</span>
+        <span class="idea-page-meta-val idea-page-id">{{ id }}</span>
+      </div>
+    </div>
+    <div class="idea-page-meta">
+      <div class="idea-page-meta-cell">
+        <span class="idea-page-meta-label">Link</span>
+        <span class="idea-page-meta-val idea-page-id">{{ share_url }}</span>
+      </div>
+    </div>
+    <div class="idea-page-actions">
+      <a class="idea-page-btn" href="/idea/{{ id }}?edit=1">✏ Edit</a>
+      <form method="post" action="/idea/{{ id }}/delete" class="inline" style="flex:1; display:flex;">
+        <button type="submit" class="idea-page-btn danger" style="flex:1;">✕ Delete</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</main>
+
+<footer class="footer"><span class="fa">راستی</span> — The Idea Bucket v2 · pure Rust, zero JavaScript</footer>
+{% endblock %}
