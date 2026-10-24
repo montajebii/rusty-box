@@ -45,6 +45,18 @@ android {
         }
     }
 
+    testOptions {
+        // Print failing tests with full stack traces to the build log — the
+        // HTML report never leaves the CI runner, and a bare "6 failed"
+        // helps nobody. AGP routes Test task config through here.
+        unitTests.all {
+            testLogging {
+                events 'failed'
+                exceptionFormat 'full'
+            }
+        }
+    }
+
     // Keep the desktop debug build out of Android's variant pipeline so a normal
     // assemble/assembleDebug assembleRelease still builds the real mobile app.
     applicationVariants.all { variant ->
@@ -70,13 +82,4 @@ dependencies {
     testImplementation 'org.robolectric:robolectric:4.14.1'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
-}
-
-// Print failing tests with full stack traces to the build log — the HTML
-// report is not available on CI, and '6 failed' without a reason helps nobody.
-tasks.withType(Test).configureEach {
-    testLogging {
-        events 'failed'
-        exceptionFormat 'full'
-    }
 }
