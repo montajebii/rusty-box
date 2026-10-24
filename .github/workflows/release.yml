@@ -18,15 +18,18 @@
 # debug key. That installs fine, but it has a *different* signature, so it cannot upgrade an
 # install that was signed with a real key — the release notes say so, and the workflow
 # warns in its summary.
-name: Release
+name: Release (legacy v1 APK)
 
+# Since v2 the app is the Rust workspace; this pipeline only ships the frozen v1
+# Capacitor APK, so it only fires on legacy v1.* tags. Rust releases do not go
+# through here.
 on:
   push:
-    tags: ['v*']
+    tags: ['v1.*']
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to release, e.g. v1.1.0'
+        description: 'Existing v1 tag to release, e.g. v1.2.0'
         required: true
         type: string
 
@@ -44,6 +47,9 @@ jobs:
     name: Build and publish
     # Pinned, not ubuntu-latest: that label moves to Ubuntu 26.04 in November 2026.
     runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: legacy
     env:
       # Empty unless a signing key is configured — the build steps branch on this.
       KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -88,7 +94,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('legacy/android/**/*.gradle', 'legacy/android/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             gradle-${{ runner.os }}-
 

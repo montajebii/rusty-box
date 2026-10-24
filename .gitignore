@@ -21,3 +21,8 @@ stash-i18n-full.patch
 .env
 skills/
 upload/
+
+# Sandbox tooling artifacts (never part of the repo)
+/tool-results/
+/target/
+/data/
