@@ -18,13 +18,22 @@ use rustybox_core::{
     Filter, ImportMode, TextError,
 };
 
-use crate::flash;
+use crate::flash::{self, Flash};
 use crate::form::HtmlForm;
 use crate::state::{persist, SharedState};
 use crate::view::{
     age_line, blob_layout, fmt_date, fmt_datetime, level_y, more_count, surface_rx, truncate_card,
     url_encode, MAX_BLOBS,
 };
+
+/// The favicon and the social-card image are compiled into the binary, so the
+/// whole app still works with no files around it and no network to fetch from.
+const FAVICON_SVG: &str = include_str!("../static/favicon.svg");
+const OG_IMAGE_SVG: &str = include_str!("../static/og-image.svg");
+
+/// The theme cookie: one year, server-read only (there is no JavaScript to
+/// read it client-side, and nothing else on the site needs cookies).
+const THEME_COOKIE: &str = "rustybox_theme";
 
 // ---------- query / form payloads ----------
 
@@ -34,6 +43,9 @@ pub struct IndexQuery {
     bucket: Option<String>,
     m: Option<String>,
     p: Option<String>,
+    /// Theme override from the footer picker: `light`, `dark`, or empty for
+    /// "follow the system". The choice lands in a one-year cookie.
+    theme: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -78,10 +90,22 @@ pub struct BucketForm {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct RenameForm {
+    from: String,
+    to: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct ImportForm {
     payload: String,
     #[serde(default)]
     mode: String,
+}
+
+/// Some POST-rendered pages still honour `?theme=` on their URL.
+#[derive(Debug, Deserialize)]
+pub struct ThemeQuery {
+    theme: Option<String>,
 }
 
 // ---------- template view models ----------
@@ -128,6 +152,13 @@ pub struct BlobVm {
 #[template(path = "index.html")]
 pub struct IndexTemplate {
     flash: String,
+    flash_class: &'static str,
+    /// Explicit theme for `<html data-theme=...>`; empty means "follow the
+    /// system" and renders no attribute.
+    theme: String,
+    /// The quarantined backup path, when boot moved a corrupt data file
+    /// aside. Empty on a healthy boot.
+    quarantine: String,
     level_y: i64,
     surface_rx: i64,
     has_ideas: bool,
@@ -153,6 +184,9 @@ pub struct IndexTemplate {
 #[template(path = "idea.html")]
 pub struct IdeaTemplate {
     flash: String,
+    flash_class: &'static str,
+    theme: String,
+    quarantine: String,
     editing: bool,
     id: String,
     text: String,
@@ -169,6 +203,30 @@ pub struct IdeaTemplate {
     text_len: usize,
 }
 
+/// The two-step guard page for a destructive replace-import: shown instead
+/// of mutating, until the same payload is confirmed.
+#[derive(Template)]
+#[template(path = "confirm.html")]
+pub struct ConfirmTemplate {
+    flash: String,
+    flash_class: &'static str,
+    theme: String,
+    quarantine: String,
+    count: usize,
+    incoming: usize,
+    payload: String,
+}
+
+/// The styled 404: every dead end leads back to the box.
+#[derive(Template)]
+#[template(path = "404.html")]
+pub struct NotFoundTemplate {
+    flash: String,
+    flash_class: &'static str,
+    theme: String,
+    quarantine: String,
+}
+
 // ---------- router ----------
 
 pub fn router(state: SharedState) -> Router {
@@ -179,11 +237,16 @@ pub fn router(state: SharedState) -> Router {
         .route("/idea/{id}/edit", post(idea_edit))
         .route("/idea/{id}/delete", post(idea_delete))
         .route("/buckets/delete", post(bucket_delete))
+        .route("/buckets/rename", post(bucket_rename))
         .route("/dip", get(dip))
         .route("/export/json", get(export_json_route))
         .route("/export/md", get(export_md_route))
         .route("/import", post(import_route))
+        .route("/import/confirm", post(import_confirm))
+        .route("/static/favicon.svg", get(static_favicon))
+        .route("/static/og-image.svg", get(static_og_image))
         .route("/healthz", get(healthz))
+        .fallback(not_found_page)
         .with_state(state)
 }
 
@@ -207,8 +270,59 @@ fn redirect(path: String) -> Response {
     Redirect::to(&path).into_response()
 }
 
-fn flash_of(code: &Option<String>, payload: &Option<String>) -> Option<String> {
+fn flash_of(code: &Option<String>, payload: &Option<String>) -> Option<Flash> {
     flash::resolve(code.as_deref()?, payload.as_deref())
+}
+
+/// The theme for this render: the query override wins (that is the footer
+/// picker's own transport), then the stored cookie, otherwise follow the
+/// system. Only `light`/`dark` are explicit; anything else renders no
+/// `data-theme` attribute and the CSS media query decides.
+fn effective_theme(query_theme: &Option<String>, headers: &axum::http::HeaderMap) -> String {
+    let from_query = query_theme.as_deref().map(str::trim);
+    if let Some(t) = from_query {
+        return match t {
+            "light" | "dark" => t.to_string(),
+            _ => String::new(),
+        };
+    }
+    if let Some(raw) = headers.get(header::COOKIE).and_then(|v| v.to_str().ok()) {
+        for pair in raw.split(';') {
+            let mut it = pair.trim().splitn(2, '=');
+            if it.next() == Some(THEME_COOKIE) {
+                if let Some(value) = it.next() {
+                    if value == "light" || value == "dark" {
+                        return value.to_string();
+                    }
+                }
+            }
+        }
+    }
+    String::new()
+}
+
+/// The Set-Cookie header for a theme choice: one year for light/dark, an
+/// immediate expiry for "auto" (clear it and follow the system again).
+fn theme_cookie(value: &str) -> Option<String> {
+    match value {
+        "light" | "dark" => Some(format!(
+            "{THEME_COOKIE}={value}; Max-Age=31536000; Path=/; SameSite=Lax; HttpOnly"
+        )),
+        "" => Some(format!(
+            "{THEME_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax; HttpOnly"
+        )),
+        _ => None,
+    }
+}
+
+/// Attach a Set-Cookie header (the theme picker is the only user).
+fn with_cookie(mut response: Response, cookie: Option<String>) -> Response {
+    if let Some(value) = cookie {
+        if let Ok(v) = axum::http::HeaderValue::from_str(&value) {
+            response.headers_mut().append(header::SET_COOKIE, v);
+        }
+    }
+    response
 }
 
 fn filter_from(q: &Option<String>, bucket: &Option<String>) -> Filter {
@@ -272,8 +386,14 @@ async fn healthz() -> &'static str {
     "ok"
 }
 
-async fn index(State(st): State<SharedState>, Query(query): Query<IndexQuery>) -> Response {
+async fn index(
+    State(st): State<SharedState>,
+    Query(query): Query<IndexQuery>,
+    headers: axum::http::HeaderMap,
+) -> Response {
     let flash_msg = flash_of(&query.m, &query.p);
+    let theme = effective_theme(&query.theme, &headers);
+    let cookie = query.theme.as_ref().and_then(|t| theme_cookie(t.trim()));
     let filter = filter_from(&query.q, &query.bucket);
     let store = st.lock();
     let visible = store.visible(&filter);
@@ -357,32 +477,44 @@ async fn index(State(st): State<SharedState>, Query(query): Query<IndexQuery>) -
         dip_href.push_str(&q_suffix(&query.q));
     }
 
-    page(&IndexTemplate {
-        flash: flash_msg.unwrap_or_default(),
-        level_y: level_y(n) as i64,
-        surface_rx: surface_rx(n) as i64,
-        has_ideas: n > 0,
-        drip_visible: n == 0,
-        blobs,
-        more_text: more_count(n)
-            .map(|m| format!("+{m} more…"))
-            .unwrap_or_default(),
-        count: n,
-        count_label: match &query.bucket {
-            Some(bucket) => format!("in “{bucket}”"),
-            None if n == 1 => "idea in the bucket".to_string(),
-            None => "ideas in the bucket".to_string(),
-        },
-        chips,
-        active_bucket: query.bucket.clone().unwrap_or_default(),
-        q: query.q.clone().unwrap_or_default(),
-        cards,
-        filing,
-        into: query.bucket.clone().unwrap_or_default(),
-        empty_title,
-        empty_hint,
-        dip_href,
-    })
+    let (flash_text, flash_class) = match &flash_msg {
+        Some(f) => (f.text.clone(), f.kind.class()),
+        None => (String::new(), ""),
+    };
+    let quarantine = st.quarantine.clone().unwrap_or_default();
+    drop(store);
+    with_cookie(
+        page(&IndexTemplate {
+            flash: flash_text,
+            flash_class,
+            theme,
+            quarantine,
+            level_y: level_y(n) as i64,
+            surface_rx: surface_rx(n) as i64,
+            has_ideas: n > 0,
+            drip_visible: n == 0,
+            blobs,
+            more_text: more_count(n)
+                .map(|m| format!("+{m} more…"))
+                .unwrap_or_default(),
+            count: n,
+            count_label: match &query.bucket {
+                Some(bucket) => format!("in “{bucket}”"),
+                None if n == 1 => "idea in the bucket".to_string(),
+                None => "ideas in the bucket".to_string(),
+            },
+            chips,
+            active_bucket: query.bucket.clone().unwrap_or_default(),
+            q: query.q.clone().unwrap_or_default(),
+            cards,
+            filing,
+            into: query.bucket.clone().unwrap_or_default(),
+            empty_title,
+            empty_hint,
+            dip_href,
+        }),
+        cookie,
+    )
 }
 
 async fn drop_idea(State(st): State<SharedState>, HtmlForm(form): HtmlForm<DropForm>) -> Response {
@@ -428,8 +560,10 @@ async fn idea_page(
     State(st): State<SharedState>,
     Path(id): Path<String>,
     Query(query): Query<IdeaQuery>,
+    headers: axum::http::HeaderMap,
 ) -> Response {
     let flash_msg = flash_of(&query.m, &None);
+    let theme = effective_theme(&None, &headers);
     let store = st.lock();
     let idea = match store.get(&id) {
         Some(idea) => idea.clone(),
@@ -460,8 +594,15 @@ async fn idea_page(
     };
     drop(store);
 
+    let (flash_text, flash_class) = match &flash_msg {
+        Some(f) => (f.text.clone(), f.kind.class()),
+        None => (String::new(), ""),
+    };
     page(&IdeaTemplate {
-        flash: flash_msg.unwrap_or_default(),
+        flash: flash_text,
+        flash_class,
+        theme,
+        quarantine: String::new(),
         editing: query.edit.is_some(),
         id: idea.id.clone(),
         text: idea.text.clone(),
@@ -543,6 +684,30 @@ async fn bucket_delete(
     ))
 }
 
+async fn bucket_rename(
+    State(st): State<SharedState>,
+    HtmlForm(form): HtmlForm<RenameForm>,
+) -> Response {
+    let mut app = st.lock();
+    match app.rename_bucket(&form.from, &form.to) {
+        Ok(_) => {
+            let failure = persist(&app);
+            drop(app);
+            match failure {
+                Some(code) => redirect(format!("/{}", flash::redirect_query(code, None))),
+                None => redirect(format!(
+                    "/{}",
+                    flash::redirect_query("bucket_renamed", None)
+                )),
+            }
+        }
+        Err(_) => {
+            drop(app);
+            redirect(format!("/{}", flash::redirect_query("empty_name", None)))
+        }
+    }
+}
+
 async fn dip(State(st): State<SharedState>, Query(query): Query<DipQuery>) -> Response {
     let filter = filter_from(&query.q, &query.bucket);
     let mut app = st.lock();
@@ -579,6 +744,67 @@ async fn export_md_route(State(st): State<SharedState>) -> Response {
     attachment(&body, "text/markdown; charset=utf-8", "idea-bucket.md")
 }
 
+async fn import_confirm(
+    State(st): State<SharedState>,
+    HtmlForm(form): HtmlForm<ImportForm>,
+) -> Response {
+    // The confirm step is replace-only by definition; anything else is a
+    // mangled form and gets the failure flash.
+    let mut app = st.lock();
+    match import(&mut app.ideas, &form.payload, ImportMode::Replace) {
+        Ok(report) => {
+            let failure = persist(&app);
+            drop(app);
+            match failure {
+                Some(code) => redirect(format!("/{}", flash::redirect_query(code, None))),
+                None => redirect(format!(
+                    "/{}",
+                    flash::redirect_query(
+                        "imported",
+                        Some(&format!("{},{}", report.imported, report.skipped))
+                    )
+                )),
+            }
+        }
+        Err(_) => {
+            drop(app);
+            redirect(format!("/{}", flash::redirect_query("import_failed", None)))
+        }
+    }
+}
+
+async fn static_favicon() -> Response {
+    svg_response(FAVICON_SVG)
+}
+
+async fn static_og_image() -> Response {
+    svg_response(OG_IMAGE_SVG)
+}
+
+fn svg_response(body: &'static str) -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, "image/svg+xml".to_string()),
+            (header::CACHE_CONTROL, "public, max-age=3600".to_string()),
+        ],
+        body,
+    )
+        .into_response()
+}
+
+/// The styled 404. Status code stays 404; the copy stays honest about it.
+async fn not_found_page(headers: axum::http::HeaderMap) -> Response {
+    let theme = effective_theme(&None, &headers);
+    let mut response = page(&NotFoundTemplate {
+        flash: String::new(),
+        flash_class: "",
+        theme,
+        quarantine: String::new(),
+    });
+    *response.status_mut() = axum::http::StatusCode::NOT_FOUND;
+    response
+}
+
 fn attachment(body: &str, content_type: &str, filename: &str) -> Response {
     (
         [
@@ -595,6 +821,8 @@ fn attachment(body: &str, content_type: &str, filename: &str) -> Response {
 
 async fn import_route(
     State(st): State<SharedState>,
+    Query(query): Query<ThemeQuery>,
+    headers: axum::http::HeaderMap,
     HtmlForm(form): HtmlForm<ImportForm>,
 ) -> Response {
     let mode = if form.mode == "replace" {
@@ -602,6 +830,31 @@ async fn import_route(
     } else {
         ImportMode::Merge
     };
+
+    // The destructive mode never acts on the first submit: it shows a
+    // confirmation page carrying the same payload, and nothing is touched
+    // until that page's form posts to /import/confirm.
+    if mode == ImportMode::Replace {
+        let incoming =
+            serde_json::from_str::<Vec<serde_json::Value>>(&form.payload).map(|v| v.len());
+        return match incoming {
+            Ok(incoming) => {
+                let theme = effective_theme(&query.theme, &headers);
+                let count = { st.lock().ideas.len() };
+                page(&ConfirmTemplate {
+                    flash: String::new(),
+                    flash_class: "",
+                    theme,
+                    quarantine: String::new(),
+                    count,
+                    incoming,
+                    payload: form.payload,
+                })
+            }
+            Err(_) => redirect(format!("/{}", flash::redirect_query("import_failed", None))),
+        };
+    }
+
     let mut app = st.lock();
     match import(&mut app.ideas, &form.payload, mode) {
         Ok(report) => {

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="import-confirm">
+  <h1>Empty the box and replace everything?</h1>
+  <p class="confirm-warn">This throws out the <strong>{{ count }}</strong> idea(s) currently in the box and
+     installs the <strong>{{ incoming }}</strong> from the pasted file instead. The current
+     ideas are gone for good — export first if you might want them back.</p>
+  <form method="post" action="/import/confirm">
+    <input type="hidden" name="payload" value="{{ payload }}">
+    <input type="hidden" name="mode" value="replace">
+    <button type="submit">Yes — replace all {{ incoming }} idea(s)</button>
+    <a href="/">Cancel — keep what I have</a>
+  </form>
+</main>
+{% endblock %}

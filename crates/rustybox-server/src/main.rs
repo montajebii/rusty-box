@@ -32,13 +32,19 @@ fn main() {
         }
     };
 
-    let store = match Store::load(&cfg.data) {
-        Ok(store) => store,
+    let (store, quarantine) = match Store::load_reported(&cfg.data) {
+        Ok(found) => found,
         Err(e) => {
             eprintln!("rustybox: could not read {}: {e}", cfg.data.display());
             std::process::exit(1);
         }
     };
+    if let Some(backup) = &quarantine {
+        println!(
+            "rustybox: the data file was corrupt and was moved to {}",
+            backup.display()
+        );
+    }
     let ideas = store.ideas.len();
     println!("rustybox: {} idea(s) from {}", ideas, cfg.data.display());
     println!("rustybox: {}", cfg.host_line());
@@ -46,7 +52,7 @@ fn main() {
     println!("rustybox: {}", cfg.data_line());
     println!("rustybox: serving on http://{}:{}", cfg.host, cfg.port);
 
-    let state = std::sync::Arc::new(AppState::new(store));
+    let state = std::sync::Arc::new(AppState::with_quarantine(store, quarantine));
     let app = routes::router(state);
 
     let runtime = tokio::runtime::Builder::new_multi_thread()

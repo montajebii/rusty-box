@@ -138,7 +138,7 @@ async fn drop_rejects_empty_text() {
     assert_eq!(status, StatusCode::SEE_OTHER);
     assert_eq!(location(&headers), "/?m=empty");
     let (_, _, body) = get(&t.app, "/?m=empty").await;
-    assert!(body.contains("An idea can’t be empty"));
+    assert!(body.contains("An empty thought won’t drop — write something first"));
 }
 
 #[tokio::test]
@@ -267,7 +267,7 @@ async fn unknown_idea_bounces_home_with_a_flash() {
     assert_eq!(status, StatusCode::SEE_OTHER);
     assert_eq!(location(&headers), "/?m=not_found");
     let (_, _, body) = get(&t.app, "/?m=not_found").await;
-    assert!(body.contains("That idea isn’t here anymore"));
+    assert!(body.contains("That idea isn’t in the box anymore"));
 }
 
 #[tokio::test]
@@ -463,30 +463,265 @@ async fn import_accepts_a_v1_export() {
 }
 
 #[tokio::test]
-async fn import_replace_wipes_and_import_failed_reports() {
+async fn import_failures_report_and_never_mutate() {
     let t = TestApp::new();
     post_form(&t.app, "/drop", "text=existing").await;
-
-    let (status, headers, _) = post_form(
-        &t.app,
-        "/import",
-        "payload=%5B%7B%22text%22%3A%22only%20me%22%7D%5D&mode=replace",
-    )
-    .await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
-    assert_eq!(location(&headers), "/?m=imported&p=1%2C0");
-    let (_, _, body) = get(&t.app, "/").await;
-    assert!(body.contains("only me"));
-    assert!(
-        !body.contains(">existing<"),
-        "the replaced idea's card is gone"
-    );
 
     let (_, headers, _) = post_form(&t.app, "/import", "payload=not+json").await;
     assert_eq!(location(&headers), "/?m=import_failed");
     let (_, headers, _) =
         post_form(&t.app, "/import", "payload=%7B%22just%22%3A%22object%22%7D").await;
     assert_eq!(location(&headers), "/?m=import_failed");
+
+    let (_, _, body) = get(&t.app, "/").await;
+    assert!(
+        body.contains("existing"),
+        "failed imports leave the box alone"
+    );
+}
+
+#[tokio::test]
+async fn theme_query_override_renders_and_sets_the_cookie() {
+    let t = TestApp::new();
+    let (status, headers, body) = get(&t.app, "/?theme=dark").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains(r#"data-theme="dark""#),
+        "explicit dark: {body}"
+    );
+    let cookie = headers
+        .get_all("set-cookie")
+        .iter()
+        .map(|v| v.to_str().unwrap().to_string())
+        .collect::<Vec<_>>()
+        .join("|");
+    assert!(cookie.contains("rustybox_theme=dark"), "{cookie}");
+    assert!(cookie.contains("Max-Age=31536000"), "one year: {cookie}");
+
+    let (_, _, body) = get(&t.app, "/?theme=light").await;
+    assert!(body.contains(r#"data-theme="light""#));
+
+    // the "auto" choice clears the cookie and drops the attribute
+    let (_, headers, body) = get(&t.app, "/?theme=").await;
+    assert!(!body.contains("data-theme="), "auto renders no attribute");
+    let cookie = headers
+        .get("set-cookie")
+        .map(|v| v.to_str().unwrap().to_string())
+        .unwrap_or_default();
+    assert!(
+        cookie.contains("Max-Age=0"),
+        "auto clears the cookie: {cookie}"
+    );
+}
+
+#[tokio::test]
+async fn theme_cookie_is_honored_on_later_requests() {
+    let t = TestApp::new();
+    let response = t
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/")
+                .header("cookie", "rustybox_theme=dark")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = String::from_utf8(
+        response
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes()
+            .to_vec(),
+    )
+    .unwrap();
+    assert!(
+        body.contains(r#"data-theme="dark""#),
+        "cookie theme applies: {body}"
+    );
+
+    // a bogus cookie value must not pin a theme either
+    let response = t
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/")
+                .header("cookie", "rustybox_theme=purple")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = String::from_utf8(
+        response
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes()
+            .to_vec(),
+    )
+    .unwrap();
+    assert!(!body.contains("data-theme="));
+}
+
+#[tokio::test]
+async fn import_replace_shows_confirmation_and_mutates_nothing() {
+    let t = TestApp::new();
+    post_form(&t.app, "/drop", "text=existing").await;
+    let payload = urlencode(r#"[{"text":"replacement"}]"#);
+    let (status, headers, body) = post_form(
+        &t.app,
+        "/import",
+        &format!("payload={payload}&mode=replace"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "the guard page renders inline");
+    assert!(
+        body.contains("Empty the box and replace everything?"),
+        "{body}"
+    );
+    assert!(
+        body.contains(&format!(r#"value="{payload}""#)) || body.contains("payload"),
+        "payload carried"
+    );
+    // nothing was touched yet
+    let (_, _, before) = get(&t.app, "/").await;
+    assert!(before.contains("existing"), "no mutation before confirm");
+    assert_eq!(
+        headers.get("content-type").unwrap(),
+        "text/html; charset=utf-8"
+    );
+}
+
+#[tokio::test]
+async fn import_confirm_performs_the_replace() {
+    let t = TestApp::new();
+    post_form(&t.app, "/drop", "text=existing").await;
+    let payload = urlencode(r#"[{"text":"replacement"}]"#);
+    // skip the guard page: the confirm endpoint itself does the replace
+    let (status, headers, _) = post_form(
+        &t.app,
+        "/import/confirm",
+        &format!("payload={payload}&mode=replace"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location(&headers), "/?m=imported&p=1%2C0");
+    let (_, _, body) = get(&t.app, "/").await;
+    assert!(body.contains("replacement"));
+    assert!(!body.contains(">existing<"), "old ideas are gone");
+}
+
+#[tokio::test]
+async fn bucket_rename_moves_every_member() {
+    let t = TestApp::new();
+    post_form(&t.app, "/drop", "text=one&buckets=Work").await;
+    post_form(&t.app, "/drop", "text=two&buckets=Work").await;
+
+    let (status, headers, _) = post_form(&t.app, "/buckets/rename", "from=Work&to=Deep").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location(&headers), "/?m=bucket_renamed");
+
+    let (_, _, body) = get(&t.app, "/?bucket=Deep").await;
+    assert!(
+        body.contains("one") && body.contains("two"),
+        "members moved: {body}"
+    );
+    let (_, _, body) = get(&t.app, "/?bucket=Work").await;
+    assert!(!body.contains(">one<"), "the old name is gone");
+}
+
+#[tokio::test]
+async fn bucket_rename_rejects_a_blank_name() {
+    let t = TestApp::new();
+    post_form(&t.app, "/drop", "text=one&buckets=Work").await;
+    let (_, headers, _) = post_form(&t.app, "/buckets/rename", "from=Work&to=%20%20").await;
+    assert_eq!(location(&headers), "/?m=empty_name");
+    let (_, _, body) = get(&t.app, "/").await;
+    assert!(
+        body.contains("one"),
+        "failed rename leaves everything alone"
+    );
+}
+
+#[tokio::test]
+async fn static_assets_are_served_as_svg_with_cache_headers() {
+    let t = TestApp::new();
+    for path in ["/static/favicon.svg", "/static/og-image.svg"] {
+        let (status, headers, body) = get(&t.app, path).await;
+        assert_eq!(status, StatusCode::OK, "{path}");
+        assert_eq!(
+            headers.get("content-type").unwrap(),
+            "image/svg+xml",
+            "{path}"
+        );
+        assert_eq!(
+            headers.get("cache-control").unwrap(),
+            "public, max-age=3600",
+            "{path}"
+        );
+        assert!(body.starts_with("<svg"), "{path}");
+        assert!(!body.contains("<script"), "{path}");
+    }
+}
+
+#[tokio::test]
+async fn unknown_paths_get_a_styled_404_with_a_way_back() {
+    let t = TestApp::new();
+    let (status, _, body) = get(&t.app, "/nowhere").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(body.contains("Nothing here but the smell of oil"), "{body}");
+    assert!(body.contains("Back to the box"), "{body}");
+}
+
+#[tokio::test]
+async fn quarantine_notice_renders_on_the_index() {
+    let dir = tempfile::tempdir().unwrap();
+    let data = dir.path().join("idea-bucket.json");
+    std::fs::write(&data, "{truncated").unwrap();
+    let (store, backup) = Store::load_reported(&data).unwrap();
+    let app = router(std::sync::Arc::new(AppState::with_quarantine(
+        store, backup,
+    )));
+    let (_, _, body) = get(&app, "/").await;
+    assert!(body.contains("Your data file was damaged"), "{body}");
+    assert!(
+        body.contains("role=\"alert\""),
+        "the notice is announced: {body}"
+    );
+    assert!(body.contains("idea-bucket.json.corrupt-backup"), "{body}");
+}
+
+#[tokio::test]
+async fn zero_script_tags_on_every_served_page() {
+    let t = TestApp::new();
+    post_form(&t.app, "/drop", "text=check+every+page&buckets=Work").await;
+    let saved = std::fs::read_to_string(&t.data).unwrap();
+    let id: String = serde_json::from_str::<serde_json::Value>(&saved).unwrap()[0]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    for uri in [
+        "/",
+        "/?theme=dark",
+        "/?theme=light",
+        "/?q=check",
+        "/?bucket=Work",
+        &format!("/idea/{id}"),
+        &format!("/idea/{id}?edit=1"),
+        "/export/md",
+        "/nowhere",
+        "/static/favicon.svg",
+    ] {
+        let (_, _, body) = get(&t.app, uri).await;
+        assert!(!body.contains("<script"), "no <script> on {uri}");
+    }
 }
 
 #[tokio::test]

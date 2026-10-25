@@ -1,45 +1,91 @@
 //! One-shot flash messages. Without JavaScript there is no toast queue like
 //! v1's, so actions redirect with a short code (`?m=…`) that the next page
-//! renders as a fading toast. Codes are resolved server-side to fixed texts,
-//! so user-controlled strings never land in markup unescaped.
+//! renders as a fading toast. Codes are resolved server-side to fixed texts
+//! with a fixed *kind* (`ok` / `warn` / `err`), so user-controlled strings
+//! never land in markup unescaped and the toast's icon is drawn by CSS from
+//! the kind alone.
+
+/// How a toast reads, rendered as the CSS modifier class on `.toast`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FlashKind {
+    Ok,
+    Warn,
+    Err,
+}
+
+impl FlashKind {
+    pub fn class(self) -> &'static str {
+        match self {
+            FlashKind::Ok => "toast-ok",
+            FlashKind::Warn => "toast-warn",
+            FlashKind::Err => "toast-err",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Flash {
+    pub kind: FlashKind,
+    pub text: String,
+}
+
+impl Flash {
+    fn ok(text: impl Into<String>) -> Flash {
+        Flash {
+            kind: FlashKind::Ok,
+            text: text.into(),
+        }
+    }
+
+    fn warn(text: impl Into<String>) -> Flash {
+        Flash {
+            kind: FlashKind::Warn,
+            text: text.into(),
+        }
+    }
+}
 
 /// Resolve a flash code (and optional payload: names/counts) to the message.
-pub fn resolve(code: &str, payload: Option<&str>) -> Option<String> {
-    let msg = match code {
-        "dropped" => "💧 Dropped into the inbox — file it later".to_string(),
+pub fn resolve(code: &str, payload: Option<&str>) -> Option<Flash> {
+    let flash = match code {
+        "dropped" => Flash::ok("Dropped into the box — file it later if you like"),
         "filed" => {
             let names = payload.unwrap_or_default();
             if names.is_empty() {
                 return None;
             }
-            format!("💧 Filed into {names}")
+            Flash::ok(format!("Filed into {names}"))
         }
-        "empty" => "⚠️ An idea can’t be empty".to_string(),
-        "too_long" => "⚠️ That idea is too long".to_string(),
-        "updated" => "✏️ Idea updated".to_string(),
-        "buckets_updated" => "🗂 Buckets updated".to_string(),
-        "deleted" => "🗑 Idea removed".to_string(),
-        "not_found" => "⚠️ That idea isn’t here anymore".to_string(),
-        "bucket_deleted" => {
-            format!("🗂 Bucket removed from {} idea(s)", payload.unwrap_or("0"))
-        }
-        "empty_bucket" => "🪣 The bucket is empty — drop an idea in first".to_string(),
-        "dipped" => "🥄 Dipped up an idea".to_string(),
+        "empty" => Flash::warn("An empty thought won’t drop — write something first"),
+        "too_long" => Flash::warn("That one won’t fit — the slot takes 280 characters"),
+        "updated" => Flash::ok("Idea updated"),
+        "buckets_updated" => Flash::ok("Tins updated"),
+        "deleted" => Flash::ok("Removed — the box is lighter by one idea"),
+        "not_found" => Flash::warn("That idea isn’t in the box anymore"),
+        "bucket_deleted" => Flash::ok(format!(
+            "Freed {} idea(s) — the tin is gone, the ideas stay",
+            payload.unwrap_or("0")
+        )),
+        "bucket_renamed" => Flash::ok("Tin renamed"),
+        "empty_name" => Flash::warn("A tin needs a name"),
+        "empty_bucket" => Flash::warn("Nothing in reach — the box is empty"),
+        "dipped" => Flash::ok("Pulled one out of the box"),
         "imported" => {
             // payload is "<imported>,<skipped>"
             let (imported, skipped) = payload
                 .unwrap_or("0,0")
                 .split_once(',')
                 .unwrap_or(("0", "0"));
-            format!("⬇ Imported {imported} idea(s), skipped {skipped}")
+            Flash::ok(format!("Imported {imported} idea(s), skipped {skipped}"))
         }
-        "import_failed" => "⚠️ That doesn’t look like a JSON export".to_string(),
-        "save_failed" => {
-            "⚠️ Could not write the data file — the idea lives in memory only".to_string()
-        }
+        "import_failed" => Flash::warn("That doesn’t look like a Rusty Box export"),
+        "save_failed" => Flash {
+            kind: FlashKind::Err,
+            text: "Could not write the data file — this idea lives in memory only".into(),
+        },
         _ => return None,
     };
-    Some(msg)
+    Some(flash)
 }
 
 /// Build the query suffix for a redirect: `?m=<code>` (+ `&p=<payload>`).
@@ -55,15 +101,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn known_codes_resolve() {
+    fn known_codes_resolve_with_kind_and_text() {
+        let dropped = resolve("dropped", None).unwrap();
+        assert_eq!(dropped.kind, FlashKind::Ok);
+        assert_eq!(dropped.kind.class(), "toast-ok");
         assert_eq!(
-            resolve("dropped", None).unwrap(),
-            "💧 Dropped into the inbox — file it later"
+            dropped.text,
+            "Dropped into the box — file it later if you like"
         );
-        assert_eq!(
-            resolve("filed", Some("Work + Side")).unwrap(),
-            "💧 Filed into Work + Side"
-        );
+
+        let filed = resolve("filed", Some("Workshop + Side")).unwrap();
+        assert_eq!(filed.text, "Filed into Workshop + Side");
+
+        let failed = resolve("save_failed", None).unwrap();
+        assert_eq!(failed.kind, FlashKind::Err);
+        assert_eq!(failed.kind.class(), "toast-err");
     }
 
     #[test]
@@ -81,12 +133,12 @@ mod tests {
     #[test]
     fn import_message_shows_both_counts() {
         assert_eq!(
-            resolve("imported", Some("3,1")).unwrap(),
-            "⬇ Imported 3 idea(s), skipped 1"
+            resolve("imported", Some("3,1")).unwrap().text,
+            "Imported 3 idea(s), skipped 1"
         );
         assert_eq!(
-            resolve("imported", None).unwrap(),
-            "⬇ Imported 0 idea(s), skipped 0"
+            resolve("imported", None).unwrap().text,
+            "Imported 0 idea(s), skipped 0"
         );
     }
 

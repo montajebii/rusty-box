@@ -12,12 +12,27 @@ use rustybox_core::Store;
 
 pub struct AppState {
     store: Mutex<Store>,
+    /// Set at boot when the data file was corrupt and was quarantined. The
+    /// index renders it as a `role=alert` notice so the human learns where
+    /// their original data went instead of staring at an empty box.
+    pub quarantine: Option<String>,
 }
 
 impl AppState {
     pub fn new(store: Store) -> Self {
         AppState {
             store: Mutex::new(store),
+            quarantine: None,
+        }
+    }
+
+    /// The constructor main() uses when `Store::load_reported` reported a
+    /// quarantined payload: the box boots empty, but says why, and where the
+    /// original file was moved to.
+    pub fn with_quarantine(store: Store, backup: Option<std::path::PathBuf>) -> Self {
+        AppState {
+            store: Mutex::new(store),
+            quarantine: backup.map(|p| p.display().to_string()),
         }
     }
 
@@ -54,5 +69,23 @@ mod tests {
         }));
         // The next lock must succeed instead of panicking on poison.
         assert!(state.lock().ideas.is_empty());
+    }
+
+    #[test]
+    fn quarantine_notice_survives_the_trip_to_the_state() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("idea-bucket.json");
+        std::fs::write(&path, "{truncated").unwrap();
+        let (store, backup) = Store::load_reported(&path).unwrap();
+        let state = AppState::with_quarantine(store, backup);
+        let notice = state
+            .quarantine
+            .clone()
+            .expect("a corrupt boot reports a backup");
+        assert!(
+            notice.ends_with("idea-bucket.json.corrupt-backup"),
+            "{notice}"
+        );
+        assert!(state.lock().ideas.is_empty(), "the box starts empty");
     }
 }
