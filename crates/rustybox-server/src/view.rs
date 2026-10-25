@@ -75,6 +75,17 @@ pub fn fmt_datetime(ms: i64) -> String {
         .to_string()
 }
 
+/// Compact age for card meta: "today", "1d", "3d" — the full date sits next
+/// to it, so the card answers "is this fresh?" at a glance.
+pub fn age_short(created_ms: i64, now_ms: i64) -> String {
+    let days = (now_ms - created_ms).max(0) / 86_400_000;
+    match days {
+        0 => "today".to_string(),
+        1 => "1d".to_string(),
+        n => format!("{n}d"),
+    }
+}
+
 /// v1's age line: "Created today" / "Created yesterday" / "Created N days ago".
 pub fn age_line(created_ms: i64, now_ms: i64) -> String {
     let days = (now_ms - created_ms).max(0) / 86_400_000;
@@ -150,6 +161,22 @@ mod tests {
         let cut = truncate_card(&long);
         assert_eq!(cut.chars().count(), 140);
         assert!(cut.ends_with('…'));
+    }
+
+    #[test]
+    fn age_short_compacts_to_days() {
+        let now = 1_700_000_000_000;
+        assert_eq!(age_short(now, now), "today");
+        assert_eq!(age_short(now - 86_400_000, now), "1d");
+        assert_eq!(age_short(now - 3 * 86_400_000, now), "3d");
+        assert_eq!(age_short(now - 30 * 86_400_000, now), "30d");
+    }
+
+    #[test]
+    fn age_short_never_goes_negative() {
+        // a clock skew must not produce "-1d"
+        let now = 1_700_000_000_000;
+        assert_eq!(age_short(now + 5 * 86_400_000, now), "today");
     }
 
     #[test]

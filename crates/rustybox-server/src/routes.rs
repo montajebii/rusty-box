@@ -22,7 +22,7 @@ use crate::flash::{self, Flash};
 use crate::form::HtmlForm;
 use crate::state::{persist, SharedState};
 use crate::view::{
-    blob_layout, fmt_date, fmt_datetime, level_y, more_count, surface_rx, truncate_card,
+    age_short, blob_layout, fmt_date, fmt_datetime, level_y, more_count, surface_rx, truncate_card,
     url_encode, MAX_BLOBS,
 };
 
@@ -143,6 +143,9 @@ pub struct CardVm {
     id: String,
     text: String,
     color: String,
+    source: String,
+    age: String,
+    date: String,
     edited: bool,
     buckets: Vec<CardBucketVm>,
     extra_buckets: usize,
@@ -371,6 +374,9 @@ fn card_vm(idea: &rustybox_core::Idea) -> CardVm {
         id: idea.id.clone(),
         text: truncate_card(&idea.text),
         color: idea.color.clone(),
+        source: idea.source.clone(),
+        age: age_short(idea.created, rustybox_core::model::now_ms()),
+        date: fmt_date(idea.created),
         edited: idea.edited.is_some(),
         buckets: shown,
         extra_buckets: extra,

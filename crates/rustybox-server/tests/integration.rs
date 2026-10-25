@@ -705,6 +705,43 @@ async fn quarantine_notice_renders_on_the_index() {
 }
 
 #[tokio::test]
+async fn cards_carry_the_source_line_and_the_age_date_meta() {
+    let t = TestApp::new();
+    post_form(
+        &t.app,
+        "/drop",
+        "text=meta+cards&source=a+catalogue+clipping",
+    )
+    .await;
+    let (_, _, body) = get(&t.app, "/").await;
+    assert!(body.contains("card-source"), "source line present: {body}");
+    assert!(body.contains("from: a catalogue clipping"));
+    assert!(body.contains("card-meta"), "age and date meta present");
+    assert!(body.contains("today"), "fresh ideas say so");
+    assert!(
+        body.contains("· edited") == false,
+        "unedited cards carry no flag"
+    );
+
+    let saved = std::fs::read_to_string(&t.data).unwrap();
+    let id: String = serde_json::from_str::<serde_json::Value>(&saved).unwrap()[0]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    post_form(
+        &t.app,
+        &format!("/idea/{id}/edit"),
+        "text=meta+cards+now+edited",
+    )
+    .await;
+    let (_, _, body) = get(&t.app, "/").await;
+    assert!(
+        body.contains("· edited"),
+        "the edit flag shows on the card: {body}"
+    );
+}
+
+#[tokio::test]
 async fn zero_script_tags_on_every_served_page() {
     let t = TestApp::new();
     post_form(&t.app, "/drop", "text=check+every+page&buckets=Work").await;

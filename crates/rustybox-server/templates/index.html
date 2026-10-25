@@ -248,15 +248,17 @@
         <li class="idea-card" style="--card-color:{{ c.color }}">
           <a class="idea-card-head" href="/idea/{{ c.id }}">
             <p class="card-text">{{ c.text }}</p>
-            {% if !c.buckets.is_empty() %}
-            <div class="card-buckets">
+            {% if !c.source.is_empty() %}<p class="card-source">from: {{ c.source }}</p>{% endif %}
+            <div class="card-meta">
+              <span>{{ c.age }}</span>
+              <span>·</span>
+              <span>{{ c.date }}</span>
+              {% if c.edited %}<span class="edited-flag">· edited</span>{% endif %}
               {% for b in c.buckets %}
               <span class="chip chip-static" style="--chip-color:{{ b.color }}"><span class="chip-dot" aria-hidden="true"></span><span class="chip-label">{{ b.name }}</span></span>
               {% endfor %}
               {% if c.extra_buckets > 0 %}<span class="chip chip-static">+{{ c.extra_buckets }}</span>{% endif %}
             </div>
-            {% endif %}
-            {% if c.edited %}<span class="edited-flag">· edited</span>{% endif %}
           </a>
           <div class="card-actions">
             <a class="icon-btn" href="/idea/{{ c.id }}?edit=1">Edit</a>
