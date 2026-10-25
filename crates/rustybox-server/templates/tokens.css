@@ -1,0 +1,310 @@
+/* ============================================================
+   Rusty Box — design tokens
+   ------------------------------------------------------------
+   The single source of truth for palette, type, space, depth
+   and motion. Every other rule in style.css consumes these
+   custom properties; no magic hex values live downstream.
+
+   Palette story: an old wooden box with rusted metal straps.
+   - paper   warm paper the notes are written on
+   - oak     aged wood of the box
+   - rust    oxidised copper — the accent, the lever, the alert
+   - patina  verdigris — quiet secondary, success, "safe"
+   - iron    deep iron — text, structure, the dark of the box
+
+   Light theme: "daylight on the workbench".
+   Dark theme:  "lamp-lit cellar" (a designed dark, not an inverse:
+   surfaces go warm-black, the accent cools down to embers, and
+   a lamp of old gold is kept for tiny glints).
+   ============================================================ */
+
+:root {
+  /* ---------- palette primitives ---------- */
+  --paper-50:  #faf6ec;
+  --paper-100: #f4eee0;
+  --paper-200: #e9dfc9;
+  --paper-300: #d9cbae;
+  --paper-400: #c4b18c;
+  --paper-500: #ab9570;
+  --paper-600: #8f7a58;
+  --paper-700: #73603f;
+  --paper-800: #56462d;
+  --paper-900: #3b2f1e;
+
+  --oak-50:  #f7f0e4;
+  --oak-100: #ecdfc9;
+  --oak-200: #dcc6a4;
+  --oak-300: #c8a97c;
+  --oak-400: #b28a58;
+  --oak-500: #9a7040;
+  --oak-600: #7f5a33;
+  --oak-700: #654629;
+  --oak-800: #4b341f;
+  --oak-900: #322316;
+
+  --rust-50:  #fbf0e8;
+  --rust-100: #f6dcc9;
+  --rust-200: #eebb9f;
+  --rust-300: #e2946c;
+  --rust-400: #d4713f;
+  --rust-500: #c05a28;
+  --rust-600: #a4471d;
+  --rust-700: #863716;
+  --rust-800: #682a11;
+  --rust-900: #4a1d0b;
+
+  --patina-50:  #eef5f0;
+  --patina-100: #d8e9de;
+  --patina-200: #b5d5c3;
+  --patina-300: #8bbaa2;
+  --patina-400: #639d82;
+  --patina-500: #468168;
+  --patina-600: #356753;
+  --patina-700: #2a5041;
+  --patina-800: #213b31;
+  --patina-900: #172921;
+
+  --iron-50:  #f5efe4;
+  --iron-100: #e9e1d4;
+  --iron-200: #d5c7ae;
+  --iron-300: #b5a48d;
+  --iron-400: #94806b;
+  --iron-500: #75604c;
+  --iron-600: #5d4a39;
+  --iron-700: #46372a;
+  --iron-800: #33281c;
+  --iron-900: #261e14;
+  --iron-950: #191309;
+
+  /* the one v1 keepsake: lamp gold, for tiny glints in the dark */
+  --lamp: #f0b429;
+
+  /* ---------- typography ---------- */
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua",
+    Palatino, Georgia, "Times New Roman", serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  /* fluid modular scale (base 16px, ratio ≈ 1.22, clamped) */
+  --text-xs: 0.72rem;
+  --text-sm: 0.84rem;
+  --text-base: clamp(0.98rem, 0.94rem + 0.2vw, 1.06rem);
+  --text-md: clamp(1.08rem, 1.02rem + 0.3vw, 1.2rem);
+  --text-lg: clamp(1.25rem, 1.15rem + 0.5vw, 1.45rem);
+  --text-xl: clamp(1.5rem, 1.3rem + 1vw, 1.85rem);
+  --text-display: clamp(1.9rem, 1.4rem + 2.2vw, 2.75rem);
+
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-body: 1.6;
+
+  --measure: 68ch;
+
+  /* ---------- space scale (4px base) ---------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  /* ---------- radii ---------- */
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  /* ---------- borders ---------- */
+  --hairline: 1px;
+
+  /* ---------- motion ---------- */
+  --dur-fast: 120ms;
+  --dur: 220ms;
+  --dur-slow: 320ms;
+  --dur-lid: 400ms;
+
+  /* mechanical, never bouncy-silly: settle, then stop */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-thunk: cubic-bezier(0.2, 1.3, 0.4, 1);
+
+  /* ---------- layers ---------- */
+  --z-toast: 90;
+  --z-skip: 100;
+
+  /* ---------- shared texture recipes ---------- */
+  /* fine paper grain (inline SVG turbulence, tiled) */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* vertical wood planks: grain stripes + plank seams */
+  --planks: repeating-linear-gradient(
+    90deg,
+    transparent 0 46px,
+    var(--seam) 46px 47px,
+    transparent 47px 96px
+  );
+  /* brushed metal: fine horizontal lines */
+  --brushed: repeating-linear-gradient(
+    0deg,
+    transparent 0 2px,
+    var(--brush-line) 2px 3px
+  );
+
+  /* print is always paper: theme-independent ink and hairline rules
+     (the only place a bare device color is the honest choice) */
+  --print-ink: #000000;
+  --print-rule: #999999;
+}
+
+/* ============================================================
+   LIGHT — "daylight on the workbench"
+   All ratios verified (docs/ui-redesign.md): body ≥ 7:1,
+   secondary ≥ 4.5:1, interactive ≥ 3:1.
+   ============================================================ */
+:root {
+  color-scheme: light;
+
+  --bg: var(--paper-100);
+  --bg-grain-opacity: 0.05;
+  --surface: #fbf7ec;
+  --surface-raised: #fffdf6;
+  --surface-sunken: #efe7d5;
+
+  --border: var(--iron-200);
+  --border-strong: var(--iron-300);
+  --seam: rgba(38, 30, 20, 0.16);
+  --brush-line: rgba(38, 30, 20, 0.05);
+
+  --text: var(--iron-900);          /* 14.2:1 on bg, 15.4:1 on surface */
+  --text-muted: var(--iron-600);    /*  7.3:1 on bg */
+  --text-faint: var(--iron-500);    /*  5.6:1 on surface */
+
+  --accent: var(--rust-600);        /*  5.2:1 as text on bg */
+  --accent-strong: var(--rust-700); /*  7.1:1 on bg */
+  --accent-contrast: #fff6e8;       /*  5.6:1 on accent fill */
+  --accent-soft: var(--rust-50);
+
+  --patina: var(--patina-700);      /*  8.5:1 on surface */
+  --patina-soft: var(--patina-50);
+  --danger: #8c2f18;                /*  7.7:1 on surface */
+  --danger-soft: #f9e8e0;
+  --success: var(--patina-700);
+  --focus-ring: var(--rust-500);    /*  3.8:1 on bg */
+
+  --metal-hi: var(--oak-200);
+  --metal-lo: var(--oak-400);
+
+  --shadow-ambient: 0 1px 2px rgba(38, 30, 20, 0.05),
+    0 2px 6px rgba(38, 30, 20, 0.07);
+  --shadow-contact: 0 10px 24px -6px rgba(38, 30, 20, 0.18);
+  --shadow-card: var(--shadow-ambient), var(--shadow-contact);
+  --shadow-raise: 0 1px 2px rgba(38, 30, 20, 0.06),
+    0 6px 18px -4px rgba(38, 30, 20, 0.22);
+  --inset-seam: inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 0 0 1px rgba(38, 30, 20, 0.04);
+  --slot-inset: inset 0 2px 6px rgba(25, 19, 9, 0.5);
+
+  --toast-bg: var(--iron-900);
+  --toast-text: var(--paper-100);
+}
+
+/* ============================================================
+   DARK — "lamp-lit cellar"
+   ============================================================ */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: var(--iron-950);
+  --bg-grain-opacity: 0.07;
+  --surface: #221a11;
+  --surface-raised: #2a2014;
+  --surface-sunken: #191309;
+
+  --border: #4a3a26;
+  --border-strong: #63503a;
+  --seam: rgba(242, 234, 217, 0.1);
+  --brush-line: rgba(242, 234, 217, 0.04);
+
+  --text: var(--paper-100);         /* 15.4:1 on bg */
+  --text-muted: var(--iron-300);    /*  7.6:1 on bg */
+  --text-faint: var(--iron-400);    /*  4.5:1 on surface */
+
+  --accent: var(--rust-300);        /*  7.6:1 as text on bg */
+  --accent-strong: var(--rust-200); /* 10.8:1 on bg */
+  --accent-contrast: var(--iron-950);
+  --accent-soft: rgba(226, 148, 108, 0.12);
+
+  --patina: var(--patina-300);      /*  9.5:1 on surface */
+  --patina-soft: rgba(139, 186, 162, 0.1);
+  --danger: #f0987d;                /*  7.8:1 on surface */
+  --danger-soft: rgba(240, 152, 125, 0.12);
+  --success: var(--patina-300);
+  --focus-ring: var(--rust-400);    /*  5.5:1 on bg */
+
+  --metal-hi: #4a3a26;
+  --metal-lo: #33281c;
+
+  --shadow-ambient: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-contact: 0 10px 28px -6px rgba(0, 0, 0, 0.55);
+  --shadow-card: var(--shadow-ambient), var(--shadow-contact);
+  --shadow-raise: 0 2px 4px rgba(0, 0, 0, 0.45),
+    0 8px 22px -4px rgba(0, 0, 0, 0.6);
+  --inset-seam: inset 0 1px 0 rgba(242, 234, 217, 0.06),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+  --slot-inset: inset 0 2px 8px rgba(0, 0, 0, 0.7);
+
+  --toast-bg: var(--paper-100);
+  --toast-text: var(--iron-950);
+}
+
+/* auto: follow the system until an explicit choice is stored */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    --bg: var(--iron-950);
+    --bg-grain-opacity: 0.07;
+    --surface: #221a11;
+    --surface-raised: #2a2014;
+    --surface-sunken: #191309;
+
+    --border: #4a3a26;
+    --border-strong: #63503a;
+    --seam: rgba(242, 234, 217, 0.1);
+    --brush-line: rgba(242, 234, 217, 0.04);
+
+    --text: var(--paper-100);
+    --text-muted: var(--iron-300);
+    --text-faint: var(--iron-400);
+
+    --accent: var(--rust-300);
+    --accent-strong: var(--rust-200);
+    --accent-contrast: var(--iron-950);
+    --accent-soft: rgba(226, 148, 108, 0.12);
+
+    --patina: var(--patina-300);
+    --patina-soft: rgba(139, 186, 162, 0.1);
+    --danger: #f0987d;
+    --danger-soft: rgba(240, 152, 125, 0.12);
+    --success: var(--patina-300);
+    --focus-ring: var(--rust-400);
+
+    --metal-hi: #4a3a26;
+    --metal-lo: #33281c;
+
+    --shadow-ambient: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-contact: 0 10px 28px -6px rgba(0, 0, 0, 0.55);
+    --shadow-card: var(--shadow-ambient), var(--shadow-contact);
+    --shadow-raise: 0 2px 4px rgba(0, 0, 0, 0.45),
+      0 8px 22px -4px rgba(0, 0, 0, 0.6);
+    --inset-seam: inset 0 1px 0 rgba(242, 234, 217, 0.06),
+      inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+    --slot-inset: inset 0 2px 8px rgba(0, 0, 0, 0.7);
+
+    --toast-bg: var(--paper-100);
+    --toast-text: var(--iron-950);
+  }
+}

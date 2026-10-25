@@ -36,7 +36,7 @@ fn entry(idea: &Idea, suffix: &str) -> String {
 /// appear under each, noted with "_(also in …)_"), then the unfiled ideas.
 pub fn export_markdown(ideas: &[Idea]) -> String {
     let buckets = bucket_index(ideas);
-    let mut lines: Vec<String> = vec!["# The Idea Bucket".into(), String::new()];
+    let mut lines: Vec<String> = vec!["# Rusty Box".into(), String::new()];
 
     if buckets.is_empty() {
         lines.push(format!("## Ideas ({})", ideas.len()));
@@ -113,7 +113,7 @@ mod tests {
     fn markdown_export_without_buckets() {
         let ideas = vec![fixed_idea("one", &[], T), fixed_idea("two", &[], T)];
         let md = export_markdown(&ideas);
-        assert!(md.starts_with("# The Idea Bucket\n\n## Ideas (2)\n\n"));
+        assert!(md.starts_with("# Rusty Box\n\n## Ideas (2)\n\n"));
         assert!(md.contains("— one"));
         assert!(md.contains("— two"));
         assert!(

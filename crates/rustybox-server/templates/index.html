@@ -1,175 +1,282 @@
 {% extends "base.html" %}
 {% block content %}
-<header>
-  <h1>The Idea Bucket <span class="tilde">~</span></h1>
-  <p class="tagline">drop a thought in. dip for old ones.</p>
+<header class="masthead">
+  <a class="lockup" href="/" aria-label="Rusty Box — home">
+    <svg viewBox="0 0 96 96" role="img" aria-hidden="true">
+      <defs>
+        <linearGradient id="markWood" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" class="wood-hi"/><stop offset="0.5" class="wood-mid"/><stop offset="1" class="wood-lo"/>
+        </linearGradient>
+        <linearGradient id="markRust" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" class="rust-hi"/><stop offset="0.6" class="rust-mid"/><stop offset="1" class="rust-lo"/>
+        </linearGradient>
+      </defs>
+      <g transform="rotate(-9 48 34)">
+        <rect x="17" y="8" width="62" height="17" rx="4" fill="url(#markWood)" class="box-outline"/>
+        <rect x="24" y="8" width="7" height="17" fill="url(#markRust)"/>
+        <rect x="65" y="8" width="7" height="17" fill="url(#markRust)"/>
+      </g>
+      <rect x="15" y="26" width="66" height="6" rx="3" class="gap-shadow"/>
+      <rect x="12" y="32" width="72" height="48" rx="5" fill="url(#markWood)" class="box-outline"/>
+      <line x1="15" y1="48" x2="81" y2="48" class="box-seam"/>
+      <line x1="15" y1="64" x2="81" y2="64" class="box-seam"/>
+      <rect x="23" y="32" width="8" height="48" fill="url(#markRust)"/>
+      <rect x="65" y="32" width="8" height="48" fill="url(#markRust)"/>
+      <circle cx="27" cy="40" r="1.7" class="rivet"/><circle cx="27" cy="72" r="1.7" class="rivet"/>
+      <circle cx="69" cy="40" r="1.7" class="rivet"/><circle cx="69" cy="72" r="1.7" class="rivet"/>
+      <rect x="42" y="56" width="12" height="13" rx="2.5" class="clasp-face"/>
+      <circle cx="48" cy="61.5" r="2" class="keyhole"/>
+      <rect x="18" y="80" width="10" height="5" rx="1.5" class="keyhole"/>
+      <rect x="68" y="80" width="10" height="5" rx="1.5" class="keyhole"/>
+    </svg>
+    <span class="wordmark">Rusty&nbsp;Box</span>
+  </a>
+  <p class="tagline">Drop a thought in. Reach back in for old ones.</p>
 </header>
 
-<div class="stage{% if has_ideas %} has-ideas{% endif %}">
-  <svg viewBox="0 0 400 360" aria-label="The idea bucket" role="img">
-    <defs>
-      <clipPath id="bucketClip">
-        <path d="M118,130 L282,130 L262,330 L138,330 Z"/>
-      </clipPath>
-      <linearGradient id="liquidGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#f0b429" stop-opacity="0.9"/>
-        <stop offset="100%" stop-color="#b97e14" stop-opacity="0.95"/>
-      </linearGradient>
-      <linearGradient id="metalGrad" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stop-color="#2a3350"/>
-        <stop offset="50%" stop-color="#3d4a73"/>
-        <stop offset="100%" stop-color="#232b45"/>
-      </linearGradient>
-      <radialGradient id="rimGlow" cx="0.5" cy="0.5" r="0.5">
-        <stop offset="0%" stop-color="#f0b429" stop-opacity="0.35"/>
-        <stop offset="100%" stop-color="#f0b429" stop-opacity="0"/>
-      </radialGradient>
-    </defs>
+<div class="layout">
 
-    <ellipse cx="200" cy="240" rx="150" ry="120" fill="url(#rimGlow)"/>
-
-    <g clip-path="url(#bucketClip)">
-      <rect id="liquid" x="110" y="{{ level_y }}" width="180" height="220" fill="url(#liquidGrad)"/>
-      <ellipse id="surface" cx="200" cy="{{ level_y }}" rx="{{ surface_rx }}" ry="8" fill="#ffd66b" opacity="0.55"/>
-      <g id="blobLayer">
-        {% for b in blobs %}
-        <circle cx="{{ b.cx }}" cy="{{ b.cy }}" r="{{ b.r }}" fill="{{ b.color }}" opacity="0.85"/>
+  <aside class="rail">
+    <nav class="rail-tins" aria-label="Tins">
+      <h2 class="rail-title">Tins <span class="count-note">{{ tin_count }}</span></h2>
+      <ul class="tin-list">
+        {% for t in tins %}
+        <li>
+          <a class="tin" style="--tin-color:{{ t.color }}" href="{{ t.href }}"{% if t.active %} aria-current="true"{% endif %}>
+            <span class="tin-dot" aria-hidden="true"></span>
+            <span class="tin-name">{{ t.name }}</span>
+            <span class="tin-count">{{ t.count }}</span>
+          </a>
+          {% if t.tools %}
+          <div class="tin-tools">
+            <details>
+              <summary>Rename…</summary>
+              <form method="post" action="/buckets/rename">
+                <input type="hidden" name="from" value="{{ t.name }}">
+                <label class="filing-label">New name</label>
+                <input type="text" name="to" value="{{ t.name }}" maxlength="24" required aria-label="New name for {{ t.name }}">
+                <button type="submit" class="btn-mini">Save</button>
+              </form>
+            </details>
+            <details>
+              <summary>Delete tin…</summary>
+              <form method="post" action="/buckets/delete">
+                <input type="hidden" name="name" value="{{ t.name }}">
+                <button type="submit" class="btn-mini-danger">Delete “{{ t.name }}” — keep its ideas</button>
+              </form>
+            </details>
+          </div>
+          {% endif %}
+        </li>
         {% endfor %}
-        {% if !more_text.is_empty() %}
-        <text x="200" y="{{ level_y + 60 }}" text-anchor="middle" fill="rgba(232,236,248,0.5)" font-size="11">{{ more_text }}</text>
-        {% endif %}
-      </g>
-    </g>
+      </ul>
+    </nav>
 
-    <path d="M118,130 L282,130 L262,330 L138,330 Z"
-          fill="url(#metalGrad)" fill-opacity="0.35"
-          stroke="#4a5680" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M118,130 L282,130 L262,330 L138,330 Z"
-          fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-linejoin="round"/>
-    <path d="M138,140 L152,140 L146,320 L134,320 Z" fill="rgba(255,255,255,0.06)"/>
-    <ellipse cx="200" cy="130" rx="82" ry="14" fill="none" stroke="#6d7ab0" stroke-width="4"/>
-    <path class="handle" d="M120,128 C120,70 280,70 280,128"
-          fill="none" stroke="#6d7ab0" stroke-width="5" stroke-linecap="round"/>
-
-    <g id="dripHint" opacity="{% if drip_visible %}1{% else %}0{% endif %}">
-      <line x1="200" y1="56" x2="200" y2="84" stroke="#5b6a99" stroke-width="2.5" stroke-linecap="round"/>
-      <circle cx="200" cy="90" r="4.5" fill="#f0b429"/>
-    </g>
-  </svg>
-</div>
-
-{# One form wraps the composer, the filing chips and the source line, so
-   pressing Enter or tapping the drop button submits all of it at once. #}
-<form method="post" action="/drop">
-  <div class="composer">
-    <input type="text" name="text" maxlength="280" autocomplete="off"
-           placeholder="An idea for later… (Enter to drop it in)" required>
-    {% if !into.is_empty() %}<input type="hidden" name="into" value="{{ into }}">{% endif %}
-    <button type="submit" title="Drop it in" aria-label="Drop idea into bucket">⌄</button>
-  </div>
-
-  <div class="composer-buckets">
-    <span class="into-label">file into</span>
-    {% if filing.is_empty() %}
-    <span class="capture-hint">no bucket yet — ideas live in the inbox until you file them</span>
-    {% endif %}
-    {% for chip in filing %}
-    <label class="chip" style="--chip-color:{{ chip.color }}">
-      <input type="checkbox" name="buckets" value="{{ chip.name }}">
-      <span class="chip-dot"></span><span class="chip-label">{{ chip.name }}</span><span class="chip-count">{{ chip.count }}</span>
-    </label>
-    {% endfor %}
-    <input class="new-bucket" type="text" name="new_bucket"
-           maxlength="24" placeholder="＋ new bucket" title="Create a bucket" autocomplete="off">
-  </div>
-
-  <div class="composer-source">
-    <input type="text" name="source" maxlength="280" autocomplete="off"
-           placeholder="from: (optional — where this idea came from)">
-  </div>
-</form>
-
-<p class="counter"><strong>{{ count }}</strong> <span>{{ count_label }}</span></p>
-
-<div class="bar">
-  <a class="bar-btn" href="{{ dip_href }}">🥄 Dip for inspiration</a>
-  <a class="bar-btn" href="#ideas">🗂 View ideas</a>
-  <a class="bar-btn" href="/export/json">⬇ JSON</a>
-  <a class="bar-btn" href="/export/md">⬇ Markdown</a>
-</div>
-
-<main class="ideas" id="ideas">
-  <div class="ideas-head">
-    <h2>Your ideas</h2>
-    <form class="search-wrap" method="get" action="/">
-      {% if !active_bucket.is_empty() %}<input type="hidden" name="bucket" value="{{ active_bucket }}">{% endif %}
-      <input type="search" name="q" value="{{ q }}" placeholder="Search ideas and buckets…" autocomplete="off">
-    </form>
-  </div>
-
-  <div class="bucket-bar">
-    {% for chip in chips %}
-    <a class="chip{% if chip.active %} active{% endif %}" style="--chip-color:{{ chip.color }}" href="{{ chip.href }}">
-      <span class="chip-dot"></span><span class="chip-label">{{ chip.name }}</span><span class="chip-count">{{ chip.count }}</span>
-    </a>
-    {% endfor %}
-  </div>
-
-  {% if !active_bucket.is_empty() %}
-  <div class="bucket-hint-row">
-    <p class="bucket-hint">showing “{{ active_bucket }}” — tap All to clear. Deleting a bucket only unfiles its ideas.</p>
-    <form method="post" action="/buckets/delete">
-      <input type="hidden" name="name" value="{{ active_bucket }}">
-      <button type="submit" class="mini-danger">Delete this bucket</button>
-    </form>
-  </div>
-  {% endif %}
-
-  <div class="idea-list">
-    {% if cards.is_empty() %}
-    <div class="empty-list">
-      <p>{{ empty_title }}</p>
-      {% if !empty_hint.is_empty() %}<p class="hint">{{ empty_hint }}</p>{% endif %}
-    </div>
-    {% else %}
-    {% for c in cards %}
-    <div class="idea-card">
-      <a class="idea-card-head" href="/idea/{{ c.id }}">
-        <p>{{ c.text }}</p>
-        <div class="idea-meta">
-          <span class="dot" style="background:{{ c.color }}"></span>
-          <span>{{ c.date }}{% if c.edited %} · edited{% endif %}</span>
-        </div>
-        {% if !c.buckets.is_empty() %}
-        <div class="bucket-chips">
-          {% for b in c.buckets %}
-          <span class="chip chip-static" style="--chip-color:{{ b.color }}"><span class="chip-dot"></span><span class="chip-label">{{ b.name }}</span></span>
-          {% endfor %}
-          {% if c.extra_buckets > 0 %}<span class="chip chip-static">+{{ c.extra_buckets }}</span>{% endif %}
-        </div>
-        {% endif %}
+    <div class="rail-tools">
+      <a class="tool-btn" href="{{ dip_href }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 3v10"/><path d="M8 9l4 4 4-4"/><path d="M4 17h16"/><path d="M6 21h12"/>
+        </svg>
+        Reach in &amp; dip
+        <span class="tool-note">random</span>
       </a>
-      <div class="idea-actions-row">
-        <a class="icon-btn" href="/idea/{{ c.id }}?edit=1" title="Edit idea" aria-label="Edit idea">✏</a>
-        <form method="post" action="/idea/{{ c.id }}/delete" class="inline">
-          <button type="submit" class="icon-btn danger" title="Delete idea" aria-label="Delete idea">✕</button>
+
+      <details class="disclosure">
+        <summary>Take ideas out / bring ideas in</summary>
+        <div class="disclosure-body">
+          <div class="export-links">
+            <a class="btn" href="/export/json">JSON</a>
+            <a class="btn" href="/export/md">Markdown</a>
+          </div>
+          <p>Exports download as files and paste straight back into the import box — or into the old Idea&nbsp;Bucket browser app, the shapes are identical.</p>
+          <form class="import-form" method="post" action="/import">
+            <label class="edit-label" for="import-payload">Import a JSON export</label>
+            <textarea id="import-payload" name="payload" rows="6" placeholder="Paste the contents of an export — the v1 browser app's idea-bucket.json works as-is."></textarea>
+            <div class="import-modes">
+              <label class="mode-choice">
+                <input type="radio" name="mode" value="merge" checked>
+                <span><strong>merge</strong> — keep what's here, add the new ones</span>
+              </label>
+              <label class="mode-choice">
+                <input type="radio" name="mode" value="replace">
+                <span><strong>replace</strong> — <span class="mode-warn">empties the box first</span> (it will ask twice)</span>
+              </label>
+            </div>
+            <button type="submit" class="btn">Import</button>
+          </form>
+        </div>
+      </details>
+
+      <details class="disclosure">
+        <summary>Where does the data live?</summary>
+        <div class="disclosure-body">
+          <p>One JSON file on this machine — nothing ever leaves it. The server prints the path at startup; by default <code>data/rusty-box.json</code> (or <code>data/idea-bucket.json</code> if that's where your store already is).</p>
+        </div>
+      </details>
+    </div>
+  </aside>
+
+  <main id="main" class="content">
+
+    <section class="content-composer" aria-label="Capture an idea">
+      <form class="composer" method="post" action="/drop">
+        <div class="slot">
+          <label class="edit-label" for="drop-slot" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">New idea</label>
+          <textarea id="drop-slot" class="slot-field" name="text" rows="2" maxlength="280" required
+                    placeholder="Write it down — it'll keep…"></textarea>
+          <button type="submit" class="drop-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+              <path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/>
+            </svg>
+            Drop it in
+          </button>
+        </div>
+        {% if !into.is_empty() %}<input type="hidden" name="into" value="{{ into }}">{% endif %}
+
+        <div class="composer-meta">
+          <span class="char-hint">280 characters — plenty for one thought</span>
+          <div class="filing-row">
+            <span class="filing-label">File into</span>
+            {% for chip in filing %}
+            <label class="chip" style="--chip-color:{{ chip.color }}">
+              <input type="checkbox" name="buckets" value="{{ chip.name }}">
+              <span class="chip-dot" aria-hidden="true"></span>
+              <span class="chip-label">{{ chip.name }}</span>
+            </label>
+            {% endfor %}
+            {% if filing.is_empty() %}
+            <span class="filing-hint">no tins yet — it waits in the box, file it later</span>
+            {% endif %}
+            <input class="new-tin-input" type="text" name="new_bucket" maxlength="24"
+                   placeholder="+ new tin" title="Create a new tin" aria-label="New tin name" autocomplete="off">
+          </div>
+          <div class="source-row">
+            <input type="text" name="source" maxlength="280" autocomplete="off"
+                   placeholder="from: (optional — where this thought came from)">
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section class="content-stage">
+      <div class="stage">
+        <svg viewBox="0 0 400 360" role="img"
+             aria-label="{% if has_ideas %}A wooden box holding {{ count }} idea(s){% else %}An empty wooden box, lid open, waiting for the first idea{% endif %}">
+          <defs>
+            <linearGradient id="woodGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" class="wood-hi"/><stop offset="0.5" class="wood-mid"/><stop offset="1" class="wood-lo"/>
+            </linearGradient>
+            <linearGradient id="rustGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" class="rust-hi"/><stop offset="0.6" class="rust-mid"/><stop offset="1" class="rust-lo"/>
+            </linearGradient>
+            <linearGradient id="interiorGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" class="cave-hi"/><stop offset="1" class="cave-lo"/>
+            </linearGradient>
+            <clipPath id="openClip"><rect x="126" y="132" width="148" height="190" rx="6"/></clipPath>
+          </defs>
+
+          {% if drip_visible %}
+          <g class="drip-hint">
+            <line x1="200" y1="14" x2="200" y2="32" class="drip-line"/>
+            <circle cx="200" cy="40" r="5" class="drip-drop"/>
+          </g>
+          {% endif %}
+
+          <!-- the lid, open and leaning back -->
+          <g class="lid">
+            <g transform="rotate(-4 200 72)">
+              <rect x="100" y="58" width="200" height="28" rx="7" fill="url(#woodGrad)" class="box-outline"/>
+              <rect x="100" y="58" width="200" height="6" rx="3" class="lid-edge"/>
+              <rect x="193" y="58" width="14" height="28" fill="url(#rustGrad)"/>
+              <rect x="120" y="60" width="10" height="24" fill="url(#rustGrad)"/>
+              <rect x="270" y="60" width="10" height="24" fill="url(#rustGrad)"/>
+            </g>
+          </g>
+          <ellipse cx="200" cy="112" rx="98" ry="8" class="gap-shadow"/>
+
+          <!-- the body -->
+          <rect x="104" y="110" width="192" height="240" rx="12" fill="url(#woodGrad)" class="box-outline"/>
+          <line x1="152" y1="112" x2="152" y2="348" class="box-seam"/>
+          <line x1="200" y1="112" x2="200" y2="348" class="box-seam"/>
+          <line x1="248" y1="112" x2="248" y2="348" class="box-seam"/>
+
+          <!-- rusted straps down the sides -->
+          <rect x="106" y="112" width="16" height="236" rx="4" fill="url(#rustGrad)"/>
+          <rect x="278" y="112" width="16" height="236" rx="4" fill="url(#rustGrad)"/>
+          <circle cx="114" cy="126" r="2" class="rivet"/><circle cx="114" cy="230" r="2" class="rivet"/><circle cx="114" cy="334" r="2" class="rivet"/>
+          <circle cx="286" cy="126" r="2" class="rivet"/><circle cx="286" cy="230" r="2" class="rivet"/><circle cx="286" cy="334" r="2" class="rivet"/>
+
+          <!-- the opening and the pile of ideas -->
+          <rect x="126" y="132" width="148" height="190" rx="6" fill="url(#interiorGrad)"/>
+          <g clip-path="url(#openClip)">
+            <rect class="pile-fill" x="126" y="{{ level_y }}" width="148" height="210"/>
+            {% for b in blobs %}
+            <circle class="paper-ball" cx="{{ b.cx }}" cy="{{ b.cy }}" r="{{ b.r }}" fill="{{ b.color }}"/>
+            {% endfor %}
+            <ellipse class="pile-surface" cx="200" cy="{{ level_y }}" rx="{{ surface_rx }}" ry="7"/>
+            {% if !more_text.is_empty() %}
+            <text class="pile-note" x="200" y="{{ level_y + 34 }}" text-anchor="middle">{{ more_text }}</text>
+            {% endif %}
+          </g>
+          <rect x="126" y="132" width="148" height="190" rx="6" fill="none" class="box-seam"/>
+
+          <!-- clasp -->
+          <rect x="186" y="326" width="28" height="18" rx="3" class="clasp-face"/>
+          <circle cx="200" cy="335" r="2.4" class="keyhole"/>
+        </svg>
+      </div>
+      <p class="count-line"><strong>{{ count }}</strong><span> {{ count_label }}</span></p>
+    </section>
+
+    <section class="ideas" id="ideas" aria-label="Ideas">
+      <div class="ideas-head">
+        <h2>In the box</h2>
+        <form class="search-form" role="search" method="get" action="/">
+          {% if !active_bucket.is_empty() %}<input type="hidden" name="bucket" value="{{ active_bucket }}">{% endif %}
+          <input class="search-input" type="search" name="q" value="{{ q }}"
+                 placeholder="Search the box…" aria-label="Search ideas and tins" autocomplete="off">
+          <button type="submit" class="btn">Search</button>
+          {% if !q.is_empty() %}<a class="search-clear" href="{{ clear_search_href }}">Clear</a>{% endif %}
         </form>
       </div>
-    </div>
-    {% endfor %}
-    {% endif %}
-  </div>
 
-  <details class="import-box">
-    <summary>⬆ Import a JSON export (migrate from the browser app)</summary>
-    <form method="post" action="/import">
-      <textarea name="payload" rows="6" placeholder='Paste the contents of idea-bucket.json — the export from v1 works as-is.'></textarea>
-      <label><input type="radio" name="mode" value="merge" checked> merge — keep existing ideas, add new ones</label>
-      <label><input type="radio" name="mode" value="replace"> replace — wipe this bucket first</label>
-      <button type="submit">Import</button>
-    </form>
-  </details>
-</main>
+      {% if !q.is_empty() %}
+      <p class="results-note">{{ count }} result(s) for “{{ q }}”</p>
+      {% endif %}
+      <ul class="card-list">
+        {% for c in cards %}
+        <li class="idea-card" style="--card-color:{{ c.color }}">
+          <a class="idea-card-head" href="/idea/{{ c.id }}">
+            <p class="card-text">{{ c.text }}</p>
+            {% if !c.buckets.is_empty() %}
+            <div class="card-buckets">
+              {% for b in c.buckets %}
+              <span class="chip chip-static" style="--chip-color:{{ b.color }}"><span class="chip-dot" aria-hidden="true"></span><span class="chip-label">{{ b.name }}</span></span>
+              {% endfor %}
+              {% if c.extra_buckets > 0 %}<span class="chip chip-static">+{{ c.extra_buckets }}</span>{% endif %}
+            </div>
+            {% endif %}
+            {% if c.edited %}<span class="edited-flag">· edited</span>{% endif %}
+          </a>
+          <div class="card-actions">
+            <a class="icon-btn" href="/idea/{{ c.id }}?edit=1">Edit</a>
+            <form method="post" action="/idea/{{ c.id }}/delete" class="inline">
+              <button type="submit" class="icon-btn icon-btn-danger">Delete</button>
+            </form>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% if cards.is_empty() %}
+      <div class="empty-state">
+        <p class="empty-title">{{ empty_title }}</p>
+        {% if !empty_hint.is_empty() %}<p class="empty-hint">{{ empty_hint }}</p>{% endif %}
+        {% if !q.is_empty() %}<p class="empty-action"><a class="btn" href="{{ clear_search_href }}">Clear the search</a></p>{% endif %}
+        {% if !active_bucket.is_empty() %}<p class="empty-action"><a class="btn" href="/">Show everything</a></p>{% endif %}
+      </div>
+      {% endif %}
+    </section>
 
-<footer class="footer"><span class="fa">راستی</span> — The Idea Bucket v2 · pure Rust, zero JavaScript</footer>
+  </main>
+</div>
 {% endblock %}

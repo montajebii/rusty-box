@@ -3,22 +3,42 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0a0e1a">
-<title>{% block title %}The Idea Bucket{% endblock %}</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AA%A3%3C/text%3E%3C/svg%3E">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f4eee0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#191309" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Rusty Box — a quiet place for your ideas. Drop a thought in. Reach back in for old ones. Offline, pure Rust, zero JavaScript.">
+<meta property="og:title" content="Rusty Box">
+<meta property="og:description" content="Drop a thought in. Reach back in for old ones.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="/static/og-image.svg">
+<title>{% block title %}Rusty Box — your ideas{% endblock %}</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <style>
+{% include "tokens.css" %}
 {% include "style.css" %}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to the box</a>
 {% if !flash.is_empty() %}<div class="toast show {{ flash_class }}" role="status" aria-live="polite">{{ flash }}</div>{% endif %}
 {% if !quarantine.is_empty() %}
-<aside class="quarantine" role="alert">
+<aside class="quarantine-notice" role="alert">
   <p><strong>Your data file was damaged.</strong> The original was moved to
      <code>{{ quarantine }}</code> and the box starts empty. To restore your ideas:
      stop the server, move that file back over the data file, and start it again.</p>
 </aside>
 {% endif %}
 {% block content %}{% endblock %}
+{% block colophon %}
+<footer class="colophon">
+  <p class="colophon-note">Rusty Box · pure Rust, zero JavaScript · your ideas never leave this machine</p>
+  <form method="get" action="/" class="theme-picker" aria-label="Colour theme">
+    <span class="theme-label" id="theme-label">Theme</span>
+    <button type="submit" name="theme" value=""{% if theme.is_empty() %} aria-pressed="true"{% else %} aria-pressed="false"{% endif %} aria-describedby="theme-label">Auto</button>
+    <button type="submit" name="theme" value="light"{% if theme == "light" %} aria-pressed="true"{% else %} aria-pressed="false"{% endif %} aria-describedby="theme-label">Daylight</button>
+    <button type="submit" name="theme" value="dark"{% if theme == "dark" %} aria-pressed="true"{% else %} aria-pressed="false"{% endif %} aria-describedby="theme-label">Lamplight</button>
+  </form>
+</footer>
+{% endblock %}
 </body>
 </html>

@@ -1,15 +1,25 @@
 {% extends "base.html" %}
+{% block title %}Import — replace — Rusty Box{% endblock %}
 {% block content %}
-<main class="import-confirm">
-  <h1>Empty the box and replace everything?</h1>
-  <p class="confirm-warn">This throws out the <strong>{{ count }}</strong> idea(s) currently in the box and
-     installs the <strong>{{ incoming }}</strong> from the pasted file instead. The current
-     ideas are gone for good — export first if you might want them back.</p>
-  <form method="post" action="/import/confirm">
-    <input type="hidden" name="payload" value="{{ payload }}">
-    <input type="hidden" name="mode" value="replace">
-    <button type="submit">Yes — replace all {{ incoming }} idea(s)</button>
-    <a href="/">Cancel — keep what I have</a>
-  </form>
+<main id="main" class="page-narrow">
+  <a class="back-link" href="/">← Back to the box</a>
+
+  <div class="plate">
+    <div class="plate-tag"><span>Import — replace</span></div>
+    <h1 class="idea-title">Empty the box and replace everything?</h1>
+    <div class="confirm-warning">
+      This throws out the <strong>{{ count }}</strong> idea(s) currently in the box and
+      installs the <strong>{{ incoming }}</strong> from the pasted file instead. The current
+      ideas are gone for good — export first if you might want them back.
+    </div>
+    <form method="post" action="/import/confirm">
+      <input type="hidden" name="payload" value="{{ payload }}">
+      <input type="hidden" name="mode" value="replace">
+      <div class="idea-actions">
+        <button type="submit" class="btn btn-danger">Yes — replace all {{ incoming }} idea(s)</button>
+        <a class="btn" href="/">Cancel — keep what I have</a>
+      </div>
+    </form>
+  </div>
 </main>
 {% endblock %}

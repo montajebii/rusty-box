@@ -100,15 +100,14 @@ async fn index_renders_the_bucket() {
     let t = TestApp::new();
     let (status, _, body) = get(&t.app, "/").await;
     assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("The Idea Bucket"));
-    assert!(body.contains("drop a thought in. dip for old ones."));
-    assert!(body.contains("ideas in the bucket"));
-    assert!(body.contains("The bucket is empty."));
-    assert!(body.contains("راستی"));
-    // the glass starts empty: liquid at the bottom, drip hint visible
+    assert!(body.contains("Rusty Box"));
+    assert!(body.contains("Drop a thought in. Reach back in for old ones."));
+    assert!(body.contains("ideas in the box"));
+    assert!(body.contains("The box is empty."));
+    // the box starts empty: the pile sits at the bottom, the drip hint shows
     assert!(body.contains(r#"y="325""#));
-    assert!(body.contains(r#"opacity="1""#));
-    assert!(body.contains("no bucket yet — ideas live in the inbox until you file them"));
+    assert!(body.contains(r#"class="drip-hint""#));
+    assert!(body.contains("no tins yet — it waits in the box, file it later"));
 }
 
 #[tokio::test]
@@ -120,10 +119,7 @@ async fn drop_adds_an_idea_and_renders_it() {
 
     let (_, _, body) = get(&t.app, "/").await;
     assert!(body.contains("Rust rewrite shipped"));
-    assert!(
-        body.contains("idea in the bucket"),
-        "singular counter: {body}"
-    );
+    assert!(body.contains("idea in the box"), "singular counter: {body}");
     // the liquid rose one notch: 325 - 1/20 * 175 = 316.25 -> 316
     assert!(body.contains(r#"y="316""#));
     // and the store was persisted
@@ -161,7 +157,7 @@ async fn drop_files_into_checked_buckets_and_new_buckets() {
 
     let (_, _, body) = get(&t.app, "/").await;
     assert!(body.contains("Fresh"));
-    assert!(body.contains("file into"));
+    assert!(body.contains("File into"));
 }
 
 #[tokio::test]
@@ -227,12 +223,15 @@ async fn bucket_filter_and_active_chip() {
     post_form(&t.app, "/drop", "text=two").await;
 
     let (_, _, body) = get(&t.app, "/?bucket=Work").await;
-    assert!(body.contains("in “Work”"));
-    assert!(body.contains("chip active"));
+    assert!(body.contains("in the “Work” tin"));
+    assert!(
+        body.contains("aria-current=\"true\""),
+        "the active tin is marked"
+    );
     assert!(body.contains("one"));
     assert!(!body.contains(">two<"), "unfiled idea is filtered out");
     // the "delete this bucket" affordance appears with the active filter
-    assert!(body.contains("Delete this bucket"));
+    assert!(body.contains("Delete “Work” — keep its ideas"));
     // the composer carries the armed bucket so the next drop files into it
     assert!(body.contains(r#"name="into" value="Work""#));
 }
@@ -255,9 +254,8 @@ async fn idea_page_view_mode() {
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("deep link me"));
     assert!(body.contains("from: https://example.com"));
-    assert!(body.contains("Created today"));
     assert!(body.contains(&id));
-    assert!(body.contains("In the inbox — no bucket yet. Tap Edit to file it."));
+    assert!(body.contains("In the box, no tin yet. Edit to file it."));
 }
 
 #[tokio::test]
@@ -296,7 +294,8 @@ async fn edit_flow_updates_text_and_marks_edited() {
 
     let (_, _, page) = get(&t.app, &format!("/idea/{id}")).await;
     assert!(page.contains("after edit"));
-    assert!(page.contains("Edited "), "edit stamp shows: {page}");
+    assert!(page.contains(">Edited</span>"), "edit stamp shows: {page}");
+    assert!(page.contains("after edit"));
 
     let (_, _, list) = get(&t.app, "/").await;
     assert!(list.contains("· edited"));
@@ -409,7 +408,7 @@ async fn json_export_is_an_attachment() {
     assert_eq!(headers.get("content-type").unwrap(), "application/json");
     assert_eq!(
         headers.get("content-disposition").unwrap(),
-        "attachment; filename=\"idea-bucket.json\""
+        "attachment; filename=\"rusty-box.json\""
     );
     let v: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(v[0]["text"], "exported");
@@ -438,8 +437,8 @@ async fn markdown_export_has_bucket_sections() {
         .unwrap()
         .to_str()
         .unwrap()
-        .contains("idea-bucket.md"));
-    assert!(body.starts_with("# The Idea Bucket"));
+        .contains("rusty-box.md"));
+    assert!(body.starts_with("# Rusty Box"));
     assert!(body.contains("## Work (1)"));
     assert!(body.contains("## Side (1)"));
     assert!(body.contains("_(also in Work)_"));
@@ -503,7 +502,11 @@ async fn theme_query_override_renders_and_sets_the_cookie() {
 
     // the "auto" choice clears the cookie and drops the attribute
     let (_, headers, body) = get(&t.app, "/?theme=").await;
-    assert!(!body.contains("data-theme="), "auto renders no attribute");
+    assert!(
+        body.contains("<html lang=\"en\">"),
+        "auto renders no attribute: {body}"
+    );
+    assert!(!body.contains("<html lang=\"en\" data-theme="));
     let cookie = headers
         .get("set-cookie")
         .map(|v| v.to_str().unwrap().to_string())
@@ -567,7 +570,10 @@ async fn theme_cookie_is_honored_on_later_requests() {
             .to_vec(),
     )
     .unwrap();
-    assert!(!body.contains("data-theme="));
+    assert!(
+        body.contains("<html lang=\"en\">"),
+        "a junk cookie must not pin a theme"
+    );
 }
 
 #[tokio::test]
@@ -739,7 +745,7 @@ async fn chip_links_url_encode_bucket_names() {
     assert!(body.contains("href=\"/?bucket=side%20projects\""), "{body}");
     // and the encoded link actually works
     let (_, _, filtered) = get(&t.app, "/?bucket=side%20projects").await;
-    assert!(filtered.contains("in “side projects”"));
+    assert!(filtered.contains("in the “side projects” tin"));
     assert!(filtered.contains("one"));
 }
 
@@ -751,7 +757,7 @@ async fn corrupt_store_is_quarantined_at_boot() {
     let store = Store::load(&data).unwrap();
     let app = router(std::sync::Arc::new(AppState::new(store)));
     let (_, _, body) = get(&app, "/").await;
-    assert!(body.contains("The bucket is empty."));
+    assert!(body.contains("The box is empty."));
     assert!(dir.path().join("idea-bucket.json.corrupt-backup").exists());
 }
 

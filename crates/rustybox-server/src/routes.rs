@@ -22,7 +22,7 @@ use crate::flash::{self, Flash};
 use crate::form::HtmlForm;
 use crate::state::{persist, SharedState};
 use crate::view::{
-    age_line, blob_layout, fmt_date, fmt_datetime, level_y, more_count, surface_rx, truncate_card,
+    blob_layout, fmt_date, fmt_datetime, level_y, more_count, surface_rx, truncate_card,
     url_encode, MAX_BLOBS,
 };
 
@@ -113,8 +113,16 @@ pub struct ThemeQuery {
 pub struct ChipVm {
     name: String,
     color: String,
+}
+
+/// One row of the rail's tin list. The "All" pseudo-tin opens the unfiltered
+/// box and carries no rename/delete tools — those belong to real tins only.
+pub struct TinVm {
+    name: String,
+    color: String,
     count: usize,
     active: bool,
+    tools: bool,
     href: String,
 }
 
@@ -135,7 +143,6 @@ pub struct CardVm {
     id: String,
     text: String,
     color: String,
-    date: String,
     edited: bool,
     buckets: Vec<CardBucketVm>,
     extra_buckets: usize,
@@ -167,14 +174,17 @@ pub struct IndexTemplate {
     more_text: String,
     count: usize,
     count_label: String,
-    /// filter-bar chips: All + every bucket with its count
-    chips: Vec<ChipVm>,
+    /// the rail's tin list: All + every tin with its count
+    tins: Vec<TinVm>,
+    tin_count: usize,
     active_bucket: String,
     q: String,
     cards: Vec<CardVm>,
-    /// composer filing checkboxes: every known bucket
+    /// composer filing checkboxes: every known tin
     filing: Vec<ChipVm>,
     into: String,
+    /// the search link that drops the query but keeps the tin filter
+    clear_search_href: String,
     empty_title: String,
     empty_hint: String,
     dip_href: String,
@@ -190,10 +200,8 @@ pub struct IdeaTemplate {
     editing: bool,
     id: String,
     text: String,
-    color: String,
     source: String,
     created: String,
-    age: String,
     edited_line: String,
     in_inbox: bool,
     buckets: Vec<CardBucketVm>,
@@ -339,20 +347,10 @@ fn q_suffix(q: &Option<String>) -> String {
     }
 }
 
-fn chip_vm(name: &str, count: usize, active: bool, q: &Option<String>) -> ChipVm {
-    // Clicking the active chip clears the bucket filter (v1's toggle);
-    // clicking any other chip filters while keeping the search term.
-    let href = if active {
-        format!("/?{}", q_suffix(q).trim_start_matches('&'))
-    } else {
-        format!("/?bucket={}{}", url_encode(name), q_suffix(q))
-    };
+fn chip_vm(name: &str) -> ChipVm {
     ChipVm {
         name: name.to_string(),
         color: bucket_color(name).to_string(),
-        count,
-        active,
-        href,
     }
 }
 
@@ -373,7 +371,6 @@ fn card_vm(idea: &rustybox_core::Idea) -> CardVm {
         id: idea.id.clone(),
         text: truncate_card(&idea.text),
         color: idea.color.clone(),
-        date: fmt_date(idea.created),
         edited: idea.edited.is_some(),
         buckets: shown,
         extra_buckets: extra,
@@ -411,30 +408,28 @@ async fn index(
         .collect();
 
     let index_chips: Vec<BucketEntry> = bucket_index(&store.ideas);
-    let mut chips: Vec<ChipVm> = vec![ChipVm {
+    let mut tins: Vec<TinVm> = vec![TinVm {
         name: "All".into(),
         color: bucket_color("").to_string(),
         count: store.ideas.len(),
         active: query.bucket.is_none(),
+        tools: false,
         href: format!("/?{}", q_suffix(&query.q).trim_start_matches('&')),
     }];
-    chips.extend(index_chips.iter().map(|b| {
-        chip_vm(
-            &b.name,
-            b.count,
-            query.bucket.as_deref() == Some(b.name.as_str()),
-            &query.q,
-        )
+    tins.extend(index_chips.iter().map(|b| TinVm {
+        name: b.name.clone(),
+        color: bucket_color(&b.name).to_string(),
+        count: b.count,
+        active: query.bucket.as_deref() == Some(b.name.as_str()),
+        tools: true,
+        href: format!("/?bucket={}{}", url_encode(&b.name), q_suffix(&query.q)),
     }));
 
-    let filing: Vec<ChipVm> = index_chips
-        .iter()
-        .map(|b| chip_vm(&b.name, b.count, false, &None))
-        .collect();
+    let filing: Vec<ChipVm> = index_chips.iter().map(|b| chip_vm(&b.name)).collect();
 
     let cards: Vec<CardVm> = visible.iter().map(|i| card_vm(i)).collect();
 
-    // v1's drawer empty states
+    // the box's empty states, in tin vocabulary
     let q_present = query.q.as_deref().is_some_and(|q| !q.trim().is_empty());
     let (empty_title, empty_hint) = if let Some(bucket) = &query.bucket {
         if q_present {
@@ -448,7 +443,7 @@ async fn index(
         } else {
             (
                 format!("Nothing in “{bucket}” yet."),
-                "Open an idea and tap Edit to file it here.".into(),
+                "Open an idea, tap Edit, and file it here.".into(),
             )
         }
     } else if q_present {
@@ -461,9 +456,15 @@ async fn index(
         )
     } else {
         (
-            "The bucket is empty.".into(),
-            "Drop your first idea above.".into(),
+            "The box is empty.".into(),
+            "Drop your first idea above — that’s the ritual.".into(),
         )
+    };
+
+    // "clear the search" keeps the tin filter, drops the query
+    let clear_search_href = match &query.bucket {
+        Some(bucket) => format!("/?bucket={}", url_encode(bucket)),
+        None => "/".to_string(),
     };
 
     // the dip link dips from what you are looking at (v1 dips from the
@@ -499,16 +500,18 @@ async fn index(
                 .unwrap_or_default(),
             count: n,
             count_label: match &query.bucket {
-                Some(bucket) => format!("in “{bucket}”"),
-                None if n == 1 => "idea in the bucket".to_string(),
-                None => "ideas in the bucket".to_string(),
+                Some(bucket) => format!("in the “{bucket}” tin"),
+                None if n == 1 => "idea in the box".to_string(),
+                None => "ideas in the box".to_string(),
             },
-            chips,
+            tins,
+            tin_count: index_chips.len(),
             active_bucket: query.bucket.clone().unwrap_or_default(),
             q: query.q.clone().unwrap_or_default(),
             cards,
             filing,
             into: query.bucket.clone().unwrap_or_default(),
+            clear_search_href,
             empty_title,
             empty_hint,
             dip_href,
@@ -606,10 +609,8 @@ async fn idea_page(
         editing: query.edit.is_some(),
         id: idea.id.clone(),
         text: idea.text.clone(),
-        color: idea.color.clone(),
         source: idea.source.clone(),
         created: fmt_datetime(idea.created),
-        age: age_line(idea.created, rustybox_core::model::now_ms()),
         edited_line: idea.edited.map(fmt_date).unwrap_or_default(),
         in_inbox: idea.buckets.is_empty(),
         buckets: idea
@@ -733,7 +734,7 @@ async fn export_json_route(State(st): State<SharedState>) -> Response {
         let app = st.lock();
         export_json(&app.ideas)
     };
-    attachment(&body, "application/json", "idea-bucket.json")
+    attachment(&body, "application/json", "rusty-box.json")
 }
 
 async fn export_md_route(State(st): State<SharedState>) -> Response {
@@ -741,7 +742,7 @@ async fn export_md_route(State(st): State<SharedState>) -> Response {
         let app = st.lock();
         export_markdown(&app.ideas)
     };
-    attachment(&body, "text/markdown; charset=utf-8", "idea-bucket.md")
+    attachment(&body, "text/markdown; charset=utf-8", "rusty-box.md")
 }
 
 async fn import_confirm(
@@ -875,5 +876,53 @@ async fn import_route(
             drop(app);
             redirect(format!("/{}", flash::redirect_query("import_failed", None)))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::HeaderMap;
+
+    fn cookie_header(value: &str) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        h.insert(
+            header::COOKIE,
+            axum::http::HeaderValue::from_str(value).unwrap(),
+        );
+        h
+    }
+
+    #[test]
+    fn query_override_wins_over_the_cookie() {
+        let headers = cookie_header("rustybox_theme=dark; other=x");
+        assert_eq!(effective_theme(&Some("light".into()), &headers), "light");
+        // an unknown query value means "auto": it wins by clearing
+        assert_eq!(effective_theme(&Some("".into()), &headers), "");
+        assert_eq!(effective_theme(&Some("neon".into()), &headers), "");
+    }
+
+    #[test]
+    fn cookie_theme_is_used_when_the_query_is_silent() {
+        let headers = cookie_header("a=b; rustybox_theme=dark; c=d");
+        assert_eq!(effective_theme(&None, &headers), "dark");
+        assert_eq!(effective_theme(&Some("light".into()), &headers), "light");
+        assert_eq!(effective_theme(&None, &HeaderMap::new()), "");
+        // a missing or junk cookie leaves the theme to the system
+        assert_eq!(
+            effective_theme(&None, &cookie_header("rustybox_theme=purple")),
+            ""
+        );
+    }
+
+    #[test]
+    fn theme_cookie_header_matches_the_contract() {
+        let year = theme_cookie("dark").unwrap();
+        assert!(year.starts_with("rustybox_theme=dark;"));
+        assert!(year.contains("Max-Age=31536000"));
+        assert!(year.contains("SameSite=Lax"));
+        let cleared = theme_cookie("").unwrap();
+        assert!(cleared.contains("Max-Age=0"), "auto clears the cookie");
+        assert!(theme_cookie("neon").is_none());
     }
 }

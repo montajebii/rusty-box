@@ -1,9 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Not here — The Idea Bucket{% endblock %}
+{% block title %}Not here — Rusty Box{% endblock %}
 {% block content %}
-<main class="not-found">
-  <h1>Nothing here but the smell of oil</h1>
-  <p>That address doesn’t match anything in the box. The idea may have been deleted, or the link is wrong.</p>
-  <p><a href="/">Back to the box</a></p>
+<main id="main" class="page-narrow">
+  <a class="back-link" href="/">← Back to the box</a>
+
+  <div class="plate">
+    <div class="plate-tag"><span>404</span></div>
+    <h1 class="idea-title">Nothing here but the smell of oil</h1>
+    <p class="empty-hint">That address doesn’t match anything in the box. The idea may have been deleted, or the link is wrong.</p>
+    <div class="idea-actions">
+      <a class="btn" href="/">Back to the box</a>
+    </div>
+  </div>
 </main>
 {% endblock %}
