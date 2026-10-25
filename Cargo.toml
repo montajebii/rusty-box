@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/rustybox-core", "crates/rustybox-server"]
 
 [workspace.package]
-version = "2.0.0"
+version = "2.1.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/montajebii/rusty-box"

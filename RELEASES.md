@@ -1,6 +1,6 @@
 # Releases
 
-Release notes for The Idea Bucket.
+Release notes for Rusty Box (formerly The Idea Bucket).
 
 ## Release format
 
@@ -12,6 +12,52 @@ Every release records:
 - Any build or release-step notes worth keeping
 
 The version is kept consistent across `package.json` and the release build. When a release is cut, `package.json` carries `"version": "<same>"` and the release APK is built with `-PversionName=<same>`. The `versionCode` must increase on every release — Android will not upgrade an installed app otherwise.
+
+## v2.1.0 — 2026-10-25
+
+The rebrand and UI redesign. **Breaking changes: none** — data, URLs and
+env vars are fully compatible; see `docs/release-notes-v2.1.0.md`.
+
+### What changed
+
+- **Rusty Box.** The Idea Bucket is now Rusty Box: crates `rustybox-core` /
+  `rustybox-server`, binary `rustybox-server`, exports `rusty-box.json` /
+  `rusty-box.md`, Markdown header `# Rusty Box`. The `IDEABUCKET_*` env vars
+  still work (the new `RUSTYBOX_*` names win when both are set), and an
+  existing `data/idea-bucket.json` remains the default store if present.
+- **New: tin rename.** `POST /buckets/rename` renames a tin everywhere,
+  position-preserving, with dedup and counted no-ops; blank names are
+  refused.
+- **New: two-step destructive import.** `replace` no longer acts on the
+  first submit — it renders a guard page ("Empty the box and replace
+  everything?") and nothing changes until `/import/confirm` posts the same
+  payload back.
+- **New: themes.** Two designed themes ("daylight on the workbench" light,
+  "lamp-lit cellar" dark) driven by `templates/tokens.css`, a `?theme=`
+  override and a one-year `rustybox_theme` cookie; the system preference
+  applies until an explicit choice is made.
+- **New: styled dead ends.** A 404 fallback ("Nothing here but the smell of
+  oil") with a way back on every page, and a `role=alert` quarantine notice
+  on the front page when a corrupt data file was moved aside at boot.
+- **Redesign.** Every template is rebuilt on the token system: masthead
+  lockup with the box mark, a rail of tins with per-tin tools, the slot
+  composer, the open box whose pile of paper balls rises with the count,
+  cards, plates, toasts, print and reduced-motion rules. Flash messages are
+  kind+text (`toast-ok/-warn/-err`), resolved server-side.
+- **In-binary assets.** `favicon.svg` and `og-image.svg` are compiled in and
+  served from `/static/` with content-type and cache headers.
+- **Config module.** Host/port/data resolve in one audited place; blank
+  values count as unset; a bad port error names the variable consulted; the
+  boot log prints each value's provenance.
+- **Tests: 77 → 106.** New coverage for tin rename, quarantine reporting,
+  config resolution, the two-step import, themes, 404, static assets, and a
+  zero-`<script>` sweep over every served page. `cargo fmt --check` and
+  `clippy -D warnings` stay green; `unsafe` remains forbidden.
+
+### Commits behind it
+
+The v2.1.0 tag is annotated and points at the release-notes commit on
+`main`; everything is fast-forward from the v2.0.0 base `b98c0b4`.
 
 ## v2.0.0 — 2026-10-25
 

@@ -371,36 +371,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ideabucket-core"
-version = "2.0.0"
-dependencies = [
- "chrono",
- "rand",
- "serde",
- "serde_json",
- "tempfile",
- "uuid",
-]
-
-[[package]]
-name = "ideabucket-server"
-version = "2.0.0"
-dependencies = [
- "askama",
- "axum",
- "chrono",
- "http-body-util",
- "ideabucket-core",
- "rand",
- "serde",
- "serde_html_form",
- "serde_json",
- "tempfile",
- "tokio",
- "tower",
-]
-
-[[package]]
 name = "indexmap"
 version = "2.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -593,6 +563,36 @@ name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
+
+[[package]]
+name = "rustybox-core"
+version = "2.1.0"
+dependencies = [
+ "chrono",
+ "rand",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "uuid",
+]
+
+[[package]]
+name = "rustybox-server"
+version = "2.1.0"
+dependencies = [
+ "askama",
+ "axum",
+ "chrono",
+ "http-body-util",
+ "rand",
+ "rustybox-core",
+ "serde",
+ "serde_html_form",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tower",
+]
 
 [[package]]
 name = "ryu"

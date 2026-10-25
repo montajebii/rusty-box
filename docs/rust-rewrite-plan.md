@@ -1,3 +1,10 @@
+> **Historical document (v2.0.0).** This plan describes the pure-Rust rewrite
+> as it was designed under the original working title, "The Idea Bucket".
+> Since v2.1.0 the product is **Rusty Box**: crates are `rustybox-*`, the
+> binary is `rustybox-server`, and the UI has been redesigned on the token
+> system in `docs/ui-redesign.md`. Names and screenshots below are kept as
+> written, for the record.
+
 # Rust Rewrite Plan — The Idea Bucket v2.0.0
 
 The Idea Bucket (راستی) is today a single-file HTML/CSS/JS app (`index.html`, v1.2.0)
