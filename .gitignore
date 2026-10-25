@@ -26,3 +26,9 @@ upload/
 /tool-results/
 /target/
 /data/
+
+# Sandbox session artifacts (never part of the repo)
+download/
+worklog.md
+CONVERSATION-LOG.md
+*.corrupt-backup
