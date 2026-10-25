@@ -13,7 +13,7 @@ use axum::routing::{get, post};
 use axum::Router;
 use serde::Deserialize;
 
-use ideabucket_core::{
+use rustybox_core::{
     bucket_color, bucket_index, export_json, export_markdown, import, BucketEntry, EditError,
     Filter, ImportMode, TextError,
 };
@@ -193,7 +193,7 @@ fn page<T: Template>(template: &T) -> Response {
     match template.render() {
         Ok(body) => Html(body).into_response(),
         Err(e) => {
-            eprintln!("ideabucket: template render failed: {e}");
+            eprintln!("rustybox: template render failed: {e}");
             (
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 "render error",
@@ -242,7 +242,7 @@ fn chip_vm(name: &str, count: usize, active: bool, q: &Option<String>) -> ChipVm
     }
 }
 
-fn card_vm(idea: &ideabucket_core::Idea) -> CardVm {
+fn card_vm(idea: &rustybox_core::Idea) -> CardVm {
     // v1's CARD_CHIPS: a card shows at most two bucket chips, then "+N".
     const CARD_CHIPS: usize = 2;
     let shown: Vec<CardBucketVm> = idea
@@ -468,7 +468,7 @@ async fn idea_page(
         color: idea.color.clone(),
         source: idea.source.clone(),
         created: fmt_datetime(idea.created),
-        age: age_line(idea.created, ideabucket_core::model::now_ms()),
+        age: age_line(idea.created, rustybox_core::model::now_ms()),
         edited_line: idea.edited.map(fmt_date).unwrap_or_default(),
         in_inbox: idea.buckets.is_empty(),
         buckets: idea

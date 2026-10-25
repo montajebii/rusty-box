@@ -1,4 +1,4 @@
-//! # ideabucket-core
+//! # rustybox-core
 //!
 //! Domain model and logic for **The Idea Bucket** (راستی) — the pure-Rust v2
 //! rewrite of the single-file web app frozen under `legacy/index.html`.

@@ -8,7 +8,7 @@
 
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use ideabucket_core::Store;
+use rustybox_core::Store;
 
 pub struct AppState {
     store: Mutex<Store>,
@@ -35,7 +35,7 @@ pub type SharedState = Arc<AppState>;
 /// Returns the flash payload to attach when the save failed (None = saved).
 pub fn persist(store: &Store) -> Option<&'static str> {
     if let Err(e) = store.save() {
-        eprintln!("ideabucket: save failed: {e}");
+        eprintln!("rustybox: save failed: {e}");
         return Some("save_failed");
     }
     None

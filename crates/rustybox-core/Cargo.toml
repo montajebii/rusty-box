@@ -1,5 +1,5 @@
 [package]
-name = "ideabucket-core"
+name = "rustybox-core"
 description = "Domain model and logic for The Idea Bucket: ideas, buckets, storage, search, export, import"
 version.workspace = true
 edition.workspace = true

@@ -7,9 +7,9 @@ use axum::http::header::{HeaderMap, HeaderValue};
 use axum::http::{Request, StatusCode};
 use axum::Router;
 use http_body_util::BodyExt;
-use ideabucket_core::Store;
-use ideabucket_server::routes::router;
-use ideabucket_server::state::AppState;
+use rustybox_core::Store;
+use rustybox_server::routes::router;
+use rustybox_server::state::AppState;
 use tower::ServiceExt;
 
 struct TestApp {

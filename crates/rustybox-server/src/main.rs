@@ -4,7 +4,7 @@
 //! Run it with:
 //!
 //! ```text
-//! IDEABUCKET_PORT=8088 IDEABUCKET_DATA=data/idea-bucket.json cargo run -p ideabucket-server
+//! IDEABUCKET_PORT=8088 IDEABUCKET_DATA=data/idea-bucket.json cargo run -p rustybox-server
 //! ```
 //!
 //! Configuration comes from the environment (all optional):
@@ -17,9 +17,9 @@
 
 use std::path::PathBuf;
 
-use ideabucket_core::Store;
-use ideabucket_server::routes;
-use ideabucket_server::state::AppState;
+use rustybox_core::Store;
+use rustybox_server::routes;
+use rustybox_server::state::AppState;
 
 fn env_or(key: &str, default: &str) -> String {
     match std::env::var(key) {
@@ -33,7 +33,7 @@ fn main() {
     let port: u16 = match env_or("IDEABUCKET_PORT", "8088").parse() {
         Ok(p) => p,
         Err(_) => {
-            eprintln!("ideabucket: IDEABUCKET_PORT must be a number, e.g. 8088");
+            eprintln!("rustybox: IDEABUCKET_PORT must be a number, e.g. 8088");
             std::process::exit(1);
         }
     };
@@ -42,13 +42,13 @@ fn main() {
     let store = match Store::load(&data) {
         Ok(store) => store,
         Err(e) => {
-            eprintln!("ideabucket: could not read {}: {e}", data.display());
+            eprintln!("rustybox: could not read {}: {e}", data.display());
             std::process::exit(1);
         }
     };
     let ideas = store.ideas.len();
-    println!("ideabucket: {} idea(s) from {}", ideas, data.display());
-    println!("ideabucket: serving on http://{host}:{port}");
+    println!("rustybox: {} idea(s) from {}", ideas, data.display());
+    println!("rustybox: serving on http://{host}:{port}");
 
     let state = std::sync::Arc::new(AppState::new(store));
     let app = routes::router(state);
@@ -61,7 +61,7 @@ fn main() {
         let listener = match tokio::net::TcpListener::bind((host.as_str(), port)).await {
             Ok(l) => l,
             Err(e) => {
-                eprintln!("ideabucket: cannot bind {host}:{port}: {e}");
+                eprintln!("rustybox: cannot bind {host}:{port}: {e}");
                 std::process::exit(1);
             }
         };
@@ -69,14 +69,14 @@ fn main() {
             .with_graceful_shutdown(shutdown_signal())
             .await
         {
-            eprintln!("ideabucket: server error: {e}");
+            eprintln!("rustybox: server error: {e}");
             std::process::exit(1);
         }
-        println!("ideabucket: bye");
+        println!("rustybox: bye");
     });
 }
 
 async fn shutdown_signal() {
     let _ = tokio::signal::ctrl_c().await;
-    println!("ideabucket: shutting down");
+    println!("rustybox: shutting down");
 }

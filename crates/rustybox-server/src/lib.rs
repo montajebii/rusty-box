@@ -1,4 +1,4 @@
-//! # ideabucket-server
+//! # rustybox-server
 //!
 //! The zero-JavaScript web server for The Idea Bucket v2: axum routes,
 //! askama templates, and the pure view math (glass level, blobs, dates).

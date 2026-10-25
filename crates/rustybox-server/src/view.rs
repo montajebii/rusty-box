@@ -2,7 +2,7 @@
 //! the resting blob layout, dates, and truncation. No HTTP, no I/O — every
 //! function is unit-testable on its own.
 
-use ideabucket_core::take_chars;
+use rustybox_core::take_chars;
 
 /// v1's glass geometry: liquid surface Y between `TOP_Y` (20+ ideas) and
 /// `BOTTOM_Y` (empty), scaled by `min(n, 20) / 20`.
