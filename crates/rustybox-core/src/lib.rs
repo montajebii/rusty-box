@@ -19,7 +19,9 @@ pub mod import;
 pub mod model;
 pub mod store;
 
-pub use buckets::{bucket_color, bucket_index, clean_bucket_name, BucketEntry};
+pub use buckets::{
+    bucket_color, bucket_index, clean_bucket_name, rename_bucket, BucketEntry, RenameBucketError,
+};
 pub use export::{export_json, export_markdown};
 pub use import::{import, ImportError, ImportMode, ImportReport};
 pub use model::{

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use rand::Rng;
 
-use crate::buckets::{clean_bucket_name, in_bucket};
+use crate::buckets::{clean_bucket_name, in_bucket, rename_bucket, RenameBucketError};
 use crate::model::{new_idea, normalize_idea, now_ms, validate_text, Idea, CAPTURE_MAX, EDIT_MAX};
 
 /// Which ideas a view (the glass, the list, a dip) looks at.
@@ -88,23 +88,32 @@ impl Store {
     /// dropped, like v1's `data.filter(i => i && typeof i.text === 'string')`;
     /// surviving entries are normalized.
     pub fn load(path: impl Into<PathBuf>) -> io::Result<Self> {
+        Self::load_reported(path).map(|(store, _)| store)
+    }
+
+    /// Load like [`Store::load`], and report whether a corrupt payload was
+    /// quarantined: `Some(backup_path)` means the original file was moved
+    /// aside and the box starts empty. The server surfaces this as a notice
+    /// on the front page instead of silently eating the user's data — the
+    /// human can stop the server and move the backup back over the store.
+    pub fn load_reported(path: impl Into<PathBuf>) -> io::Result<(Self, Option<PathBuf>)> {
         let path = path.into();
         let raw = match std::fs::read_to_string(&path) {
             Ok(raw) => raw,
-            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Store::empty(path)),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok((Store::empty(path), None)),
             Err(e) => return Err(e),
         };
 
         if raw.trim().is_empty() {
-            return Ok(Store::empty(path));
+            return Ok((Store::empty(path), None));
         }
 
         let parsed: Result<Vec<serde_json::Value>, _> = serde_json::from_str(&raw);
         let values = match parsed {
             Ok(values) => values,
             Err(_) => {
-                quarantine(&path)?;
-                return Ok(Store::empty(path));
+                let backup = quarantine(&path)?;
+                return Ok((Store::empty(path), Some(backup)));
             }
         };
 
@@ -115,7 +124,7 @@ impl Store {
                 ideas.push(idea);
             }
         }
-        Ok(Store { ideas, path })
+        Ok((Store { ideas, path }, None))
     }
 
     /// Atomically write the store: serialize, write to `<file>.tmp` in the
@@ -237,6 +246,12 @@ impl Store {
         members
     }
 
+    /// Rename a bucket across every idea (see [`rename_bucket`]); the store
+    /// is **not** saved — the caller persists, like every other mutation.
+    pub fn rename_bucket(&mut self, from: &str, to: &str) -> Result<usize, RenameBucketError> {
+        rename_bucket(&mut self.ideas, from, to)
+    }
+
     /// The ideas a view sees, in list order (newest first).
     pub fn visible(&self, filter: &Filter) -> Vec<&Idea> {
         let q = filter.q.as_deref().map(str::trim).filter(|q| !q.is_empty());
@@ -295,7 +310,8 @@ fn tmp_path(path: &Path) -> PathBuf {
 }
 
 /// Rename a corrupt payload out of the way before starting fresh.
-fn quarantine(path: &Path) -> io::Result<()> {
+/// Returns the backup path so callers can tell the human where it went.
+fn quarantine(path: &Path) -> io::Result<PathBuf> {
     let mut backup = path.as_os_str().to_os_string();
     backup.push(".corrupt-backup");
     let backup = PathBuf::from(backup);
@@ -303,7 +319,8 @@ fn quarantine(path: &Path) -> io::Result<()> {
     if backup.exists() {
         std::fs::remove_file(&backup)?;
     }
-    std::fs::rename(path, backup)
+    std::fs::rename(path, &backup)?;
+    Ok(backup)
 }
 
 #[cfg(test)]
@@ -553,5 +570,47 @@ mod tests {
         assert!(store.touch_viewed(&id));
         assert!(store.ideas[1].last_viewed >= store.ideas[0].last_viewed);
         assert!(!store.touch_viewed("ghost"));
+    }
+
+    #[test]
+    fn rename_bucket_moves_every_member_and_persists_like_any_edit() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("idea-bucket.json");
+        let mut store = Store::empty(&path);
+        store.add("a", &["Work".into(), "Side".into()], "").unwrap();
+        store.add("b", &["Work".into()], "").unwrap();
+        store.save().unwrap();
+
+        let moved = store.rename_bucket("Work", "Deep").unwrap();
+        assert_eq!(moved, 2);
+        // newest first: ideas[0] is "b", ideas[1] is "a"
+        assert_eq!(store.ideas[0].buckets, vec!["Deep"]);
+        assert_eq!(store.ideas[1].buckets, vec!["Deep", "Side"]);
+        store.save().unwrap();
+        let reloaded = Store::load(&path).unwrap();
+        assert_eq!(reloaded.ideas[1].buckets, vec!["Deep", "Side"]);
+
+        assert_eq!(
+            store.rename_bucket("Deep", "  "),
+            Err(crate::buckets::RenameBucketError::EmptyName)
+        );
+    }
+
+    #[test]
+    fn load_reported_reports_the_quarantine_backup_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("idea-bucket.json");
+        std::fs::write(&path, "{truncated").unwrap();
+
+        let (store, reported) = Store::load_reported(&path).unwrap();
+        assert!(store.ideas.is_empty());
+        let backup = dir.path().join("idea-bucket.json.corrupt-backup");
+        assert_eq!(reported, Some(backup.clone()));
+        assert!(backup.exists());
+
+        // a clean load reports nothing
+        std::fs::write(&path, "[]").unwrap();
+        let (_, reported) = Store::load_reported(&path).unwrap();
+        assert_eq!(reported, None);
     }
 }

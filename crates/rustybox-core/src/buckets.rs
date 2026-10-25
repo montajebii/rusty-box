@@ -46,6 +46,54 @@ pub fn in_bucket(idea: &Idea, name: &str) -> bool {
     idea.buckets.iter().any(|b| b == name)
 }
 
+/// Renaming a bucket can only fail on a blank result (there is no registry to
+/// collide with — a bucket exists wherever an idea mentions it).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RenameBucketError {
+    EmptyName,
+}
+
+impl std::fmt::Display for RenameBucketError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RenameBucketError::EmptyName => write!(f, "A tin needs a name"),
+        }
+    }
+}
+
+impl std::error::Error for RenameBucketError {}
+
+/// Rename bucket `from` to `to` across every idea, in place.
+///
+/// The rename is **position-preserving**: where an idea lists `from`, that
+/// slot becomes `to`, so the idea's own ordering never shifts. An idea that
+/// already carries `to` elsewhere in its list keeps it once and simply loses
+/// the `from` entry (dedup). `from == to` (after cleaning) is a counted
+/// no-op, and a blank target is [`RenameBucketError::EmptyName`].
+///
+/// Returns how many ideas were touched (dedup counts: the idea did change).
+pub fn rename_bucket(ideas: &mut [Idea], from: &str, to: &str) -> Result<usize, RenameBucketError> {
+    let to = clean_bucket_name(to);
+    if to.is_empty() {
+        return Err(RenameBucketError::EmptyName);
+    }
+    if from == to {
+        return Ok(0);
+    }
+    let mut renamed = 0;
+    for idea in ideas {
+        if let Some(pos) = idea.buckets.iter().position(|b| b == from) {
+            if idea.buckets.contains(&to) {
+                idea.buckets.remove(pos);
+            } else {
+                idea.buckets[pos] = to.clone();
+            }
+            renamed += 1;
+        }
+    }
+    Ok(renamed)
+}
+
 /// v1's `bucketIndex`: every bucket with its member count, most members
 /// first, ties broken alphabetically (case-insensitive like `localeCompare`
 /// for the ASCII case, then by raw name for stability).
@@ -137,6 +185,38 @@ mod tests {
             ]
         );
         // Work before work: count tie broken alphabetically, case-insensitively
+    }
+
+    #[test]
+    fn rename_is_position_preserving_dedups_and_counts() {
+        let mut ideas = vec![
+            idea(&["Work", "Side"]), // slot 0 becomes Deep -> [Deep, Side]
+            idea(&["Side", "Work"]), // slot 1 becomes Deep -> [Side, Deep]
+            idea(&["Work", "Deep"]), // already has Deep: Work entry is removed
+            idea(&[]),               // untouched
+        ];
+        let touched = rename_bucket(&mut ideas, "Work", "Deep").unwrap();
+        assert_eq!(touched, 3);
+        assert_eq!(ideas[0].buckets, vec!["Deep", "Side"]);
+        assert_eq!(ideas[1].buckets, vec!["Side", "Deep"]);
+        assert_eq!(ideas[2].buckets, vec!["Deep"]);
+        assert_eq!(ideas[3].buckets, Vec::<String>::new());
+    }
+
+    #[test]
+    fn rename_rejects_blank_names_and_counts_self_rename_as_noop() {
+        let mut ideas = vec![idea(&["Work"])];
+        assert_eq!(
+            rename_bucket(&mut ideas, "Work", "   "),
+            Err(RenameBucketError::EmptyName)
+        );
+        assert_eq!(
+            ideas[0].buckets,
+            vec!["Work"],
+            "failed rename must not touch anything"
+        );
+        assert_eq!(rename_bucket(&mut ideas, "Work", " Work ").unwrap(), 0);
+        assert_eq!(ideas[0].buckets, vec!["Work"]);
     }
 
     #[test]
