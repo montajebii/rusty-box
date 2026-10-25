@@ -718,10 +718,7 @@ async fn cards_carry_the_source_line_and_the_age_date_meta() {
     assert!(body.contains("from: a catalogue clipping"));
     assert!(body.contains("card-meta"), "age and date meta present");
     assert!(body.contains("today"), "fresh ideas say so");
-    assert!(
-        !body.contains("· edited"),
-        "unedited cards carry no flag"
-    );
+    assert!(!body.contains("· edited"), "unedited cards carry no flag");
 
     let saved = std::fs::read_to_string(&t.data).unwrap();
     let id: String = serde_json::from_str::<serde_json::Value>(&saved).unwrap()[0]["id"]
