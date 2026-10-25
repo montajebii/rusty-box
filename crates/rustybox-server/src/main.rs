@@ -50,7 +50,6 @@ fn main() {
     println!("rustybox: {}", cfg.host_line());
     println!("rustybox: {}", cfg.port_line());
     println!("rustybox: {}", cfg.data_line());
-    println!("rustybox: serving on http://{}:{}", cfg.host, cfg.port);
 
     let state = std::sync::Arc::new(AppState::with_quarantine(store, quarantine));
     let app = routes::router(state);
@@ -69,6 +68,8 @@ fn main() {
                 std::process::exit(1);
             }
         };
+        // only now is "serving on" true — a bind conflict must never print it
+        println!("rustybox: serving on http://{}:{}", bind_host, bind_port);
         if let Err(e) = axum::serve(listener, app)
             .with_graceful_shutdown(shutdown_signal())
             .await
