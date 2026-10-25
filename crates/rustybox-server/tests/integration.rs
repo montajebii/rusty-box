@@ -719,7 +719,7 @@ async fn cards_carry_the_source_line_and_the_age_date_meta() {
     assert!(body.contains("card-meta"), "age and date meta present");
     assert!(body.contains("today"), "fresh ideas say so");
     assert!(
-        body.contains("· edited") == false,
+        !body.contains("· edited"),
         "unedited cards carry no flag"
     );
 
