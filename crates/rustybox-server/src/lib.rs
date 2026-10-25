@@ -5,6 +5,7 @@
 //! Exposed as a library so the HTTP integration suite drives the real
 //! router in-process — no sockets, no browser.
 
+pub mod config;
 pub mod flash;
 pub mod form;
 pub mod routes;

@@ -1,54 +1,50 @@
-//! The Idea Bucket v2 — a zero-JavaScript, server-rendered rewrite of the
-//! app in pure Rust.
+//! Rusty Box — a zero-JavaScript, server-rendered home for your ideas.
 //!
 //! Run it with:
 //!
 //! ```text
-//! IDEABUCKET_PORT=8088 IDEABUCKET_DATA=data/idea-bucket.json cargo run -p rustybox-server
+//! RUSTYBOX_PORT=8088 RUSTYBOX_DATA=data/rusty-box.json cargo run -p rustybox-server
 //! ```
 //!
-//! Configuration comes from the environment (all optional):
+//! Configuration comes from the environment (all optional). The Rusty Box
+//! names are primary; the pre-rename `IDEABUCKET_*` names are still honored
+//! so existing setups keep working:
 //!
-//! | variable           | default                  | meaning                    |
-//! |--------------------|--------------------------|----------------------------|
-//! | `IDEABUCKET_HOST`  | `127.0.0.1`              | bind address (local-only)  |
-//! | `IDEABUCKET_PORT`  | `8088`                   | bind port                  |
-//! | `IDEABUCKET_DATA`  | `data/idea-bucket.json`  | the JSON store file        |
-
-use std::path::PathBuf;
+//! | variable           | default                        | meaning                    |
+//! |--------------------|--------------------------------|----------------------------|
+//! | `RUSTYBOX_HOST`    | `127.0.0.1`                    | bind address (local-only)  |
+//! | `RUSTYBOX_PORT`    | `8088`                         | bind port                  |
+//! | `RUSTYBOX_DATA`    | `data/rusty-box.json`          | the JSON store file        |
+//!
+//! The boot log states exactly which name supplied each value.
 
 use rustybox_core::Store;
+use rustybox_server::config::Config;
 use rustybox_server::routes;
 use rustybox_server::state::AppState;
 
-fn env_or(key: &str, default: &str) -> String {
-    match std::env::var(key) {
-        Ok(v) if !v.trim().is_empty() => v,
-        _ => default.to_string(),
-    }
-}
-
 fn main() {
-    let host = env_or("IDEABUCKET_HOST", "127.0.0.1");
-    let port: u16 = match env_or("IDEABUCKET_PORT", "8088").parse() {
-        Ok(p) => p,
-        Err(_) => {
-            eprintln!("rustybox: IDEABUCKET_PORT must be a number, e.g. 8088");
+    let cfg = match Config::from_env() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            eprintln!("rustybox: {e}");
             std::process::exit(1);
         }
     };
-    let data = PathBuf::from(env_or("IDEABUCKET_DATA", "data/idea-bucket.json"));
 
-    let store = match Store::load(&data) {
+    let store = match Store::load(&cfg.data) {
         Ok(store) => store,
         Err(e) => {
-            eprintln!("rustybox: could not read {}: {e}", data.display());
+            eprintln!("rustybox: could not read {}: {e}", cfg.data.display());
             std::process::exit(1);
         }
     };
     let ideas = store.ideas.len();
-    println!("rustybox: {} idea(s) from {}", ideas, data.display());
-    println!("rustybox: serving on http://{host}:{port}");
+    println!("rustybox: {} idea(s) from {}", ideas, cfg.data.display());
+    println!("rustybox: {}", cfg.host_line());
+    println!("rustybox: {}", cfg.port_line());
+    println!("rustybox: {}", cfg.data_line());
+    println!("rustybox: serving on http://{}:{}", cfg.host, cfg.port);
 
     let state = std::sync::Arc::new(AppState::new(store));
     let app = routes::router(state);
@@ -57,11 +53,13 @@ fn main() {
         .enable_all()
         .build()
         .expect("build tokio runtime");
+    let bind_host = cfg.host.clone();
+    let bind_port = cfg.port;
     runtime.block_on(async move {
-        let listener = match tokio::net::TcpListener::bind((host.as_str(), port)).await {
+        let listener = match tokio::net::TcpListener::bind((bind_host.as_str(), bind_port)).await {
             Ok(l) => l,
             Err(e) => {
-                eprintln!("rustybox: cannot bind {host}:{port}: {e}");
+                eprintln!("rustybox: cannot bind {bind_host}:{bind_port}: {e}");
                 std::process::exit(1);
             }
         };
